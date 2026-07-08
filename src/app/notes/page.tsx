@@ -6,10 +6,20 @@ interface Note {
   id: string;
   title: string;
   content: string;
+  color: string;
   updatedAt: number;
 }
 
 const STORAGE_KEY = "lumos-notes";
+
+const TEXT_COLOR_OPTIONS = [
+  { label: "Default", value: "" },
+  { label: "Red", value: "#ef4444" },
+  { label: "Orange", value: "#f97316" },
+  { label: "Green", value: "#22c55e" },
+  { label: "Blue", value: "#3b82f6" },
+  { label: "Purple", value: "#a855f7" },
+];
 
 function loadNotes(): Note[] {
   if (typeof window === "undefined") return [];
@@ -30,6 +40,7 @@ export default function NotesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [color, setColor] = useState("");
 
   useEffect(() => {
     setNotes(loadNotes());
@@ -41,6 +52,7 @@ export default function NotesPage() {
     setSelectedId(note.id);
     setTitle(note.title);
     setContent(note.content);
+    setColor(note.color ?? "");
   }
 
   function createNote() {
@@ -48,6 +60,7 @@ export default function NotesPage() {
       id: crypto.randomUUID(),
       title: "Untitled",
       content: "",
+      color: "",
       updatedAt: Date.now(),
     };
     setNotes((prev) => {
@@ -58,17 +71,23 @@ export default function NotesPage() {
     selectNote(note);
   }
 
-  function updateNote() {
+  function updateNote(overrideColor?: string) {
     if (!selectedId) return;
+    const nextColor = overrideColor ?? color;
     setNotes((prev) => {
       const next = prev.map((n) =>
         n.id === selectedId
-          ? { ...n, title, content, updatedAt: Date.now() }
+          ? { ...n, title, content, color: nextColor, updatedAt: Date.now() }
           : n,
       );
       saveNotes(next);
       return next;
     });
+  }
+
+  function selectColor(newColor: string) {
+    setColor(newColor);
+    updateNote(newColor);
   }
 
   function deleteNote() {
@@ -81,6 +100,7 @@ export default function NotesPage() {
     setSelectedId(null);
     setTitle("");
     setContent("");
+    setColor("");
   }
 
   return (
@@ -131,15 +151,37 @@ export default function NotesPage() {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                onBlur={updateNote}
+                onBlur={() => updateNote()}
                 placeholder="Note title"
                 className="bg-transparent text-lg font-semibold outline-none placeholder:text-muted-foreground"
               />
+              <div className="flex items-center gap-2">
+                {TEXT_COLOR_OPTIONS.map((option) => (
+                  <button
+                    key={option.label}
+                    type="button"
+                    onClick={() => selectColor(option.value)}
+                    title={option.label}
+                    aria-label={`Set text color to ${option.label}`}
+                    className={`h-5 w-5 rounded-full border transition-transform ${
+                      color === option.value
+                        ? "border-foreground ring-2 ring-foreground ring-offset-2 ring-offset-background"
+                        : "border-border hover:scale-110"
+                    } ${option.value === "" ? "bg-foreground" : ""}`}
+                    style={
+                      option.value
+                        ? { backgroundColor: option.value }
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                onBlur={updateNote}
+                onBlur={() => updateNote()}
                 placeholder="Start writing..."
+                style={color ? { color } : undefined}
                 className="flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
               />
               <div className="flex justify-end">
