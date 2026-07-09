@@ -6,7 +6,7 @@ import { cn } from "~/lib/utils";
 
 const links = [
   { href: "/", label: "Home" },
-  { href: "/notes", label: "Notes" },
+  { href: "/drills", label: "Drills" },
 ];
 
 export function Navbar() {
@@ -16,7 +16,7 @@ export function Navbar() {
     <nav className="border-b border-border bg-background">
       <div className="mx-auto flex h-14 max-w-3xl items-center gap-6 px-4">
         <Link href="/" className="font-semibold tracking-tight">
-          Lumos App
+          Athlete Helper
         </Link>
         <div className="flex gap-4">
           {links.map((link) => (
@@ -34,6 +34,12 @@ export function Navbar() {
             </Link>
           ))}
         </div>
+        <Link
+          href="/demo"
+          className="ml-auto rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Demo
+        </Link>
       </div>
     </nav>
   );
