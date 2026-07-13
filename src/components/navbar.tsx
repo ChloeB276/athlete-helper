@@ -1,7 +1,9 @@
 "use client";
 
+import type { User } from "@supabase/supabase-js";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "~/lib/auth-actions";
 import { cn } from "~/lib/utils";
 
 const links = [
@@ -9,7 +11,7 @@ const links = [
   { href: "/drills", label: "Drills" },
 ];
 
-export function Navbar() {
+export function Navbar({ user }: { user: User | null }) {
   const pathname = usePathname();
 
   return (
@@ -34,12 +36,39 @@ export function Navbar() {
             </Link>
           ))}
         </div>
-        <Link
-          href="/demo"
-          className="ml-auto rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          Demo
-        </Link>
+        <div className="ml-auto flex items-center gap-3">
+          <Link
+            href="/demo"
+            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Demo
+          </Link>
+          {user ? (
+            <form action={signOut}>
+              <button
+                type="submit"
+                className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                Sign Out
+              </button>
+            </form>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/signup"
+                className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </nav>
   );
