@@ -20,6 +20,9 @@
   --color-accent-foreground: oklch(0.205 0 0);
   --color-destructive: oklch(0.577 0.245 27.325);
   --color-ring: oklch(0.556 0 0);
+  /* Volt — Nike-style high-visibility accent, used sparingly against black/white */
+  --color-brand: oklch(0.91 0.24 124);
+  --color-brand-foreground: oklch(0.145 0 0);
   --radius-sm: 0.25rem;
   --radius-md: 0.375rem;
   --radius-lg: 0.5rem;
@@ -45,6 +48,8 @@
   --color-accent-foreground: oklch(0.985 0 0);
   --color-destructive: oklch(0.396 0.141 25.723);
   --color-ring: oklch(0.556 0 0);
+  --color-brand: oklch(0.91 0.24 124);
+  --color-brand-foreground: oklch(0.145 0 0);
 }
 
 @layer base {
