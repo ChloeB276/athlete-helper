@@ -12,6 +12,15 @@ const TICKER_ITEMS = [
   "MARKING",
 ];
 
+const TICKER_SEQUENCE = [0, 1, 2].flatMap((rep) =>
+  TICKER_ITEMS.map((item) => ({ key: `${rep}-${item}`, item })),
+);
+
+const HERO_STRIPES = Array.from({ length: 16 }, (_, i) => ({
+  key: `stripe-${i}`,
+  shaded: i % 2 === 0,
+}));
+
 const FEATURES = [
   {
     title: "Drills",
@@ -48,10 +57,10 @@ export default function Home() {
       {/* Hero */}
       <section className="relative overflow-hidden bg-foreground text-background">
         <div className="absolute inset-0 flex" aria-hidden="true">
-          {Array.from({ length: 16 }).map((_, i) => (
+          {HERO_STRIPES.map((stripe) => (
             <div
-              key={i}
-              className={cn("flex-1", i % 2 === 0 && "bg-background/[0.03]")}
+              key={stripe.key}
+              className={cn("flex-1", stripe.shaded && "bg-background/[0.03]")}
             />
           ))}
         </div>
@@ -89,14 +98,12 @@ export default function Home() {
       {/* Ticker */}
       <section className="overflow-hidden border-b border-border bg-muted py-4">
         <div className="flex w-max animate-marquee gap-8 whitespace-nowrap text-sm font-bold tracking-widest text-muted-foreground uppercase">
-          {[...TICKER_ITEMS, ...TICKER_ITEMS, ...TICKER_ITEMS].map(
-            (item, i) => (
-              <span key={i} className="flex items-center gap-8">
-                {item}
-                <span aria-hidden="true">●</span>
-              </span>
-            ),
-          )}
+          {TICKER_SEQUENCE.map((entry) => (
+            <span key={entry.key} className="flex items-center gap-8">
+              {entry.item}
+              <span aria-hidden="true">●</span>
+            </span>
+          ))}
         </div>
       </section>
 
