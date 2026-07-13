@@ -1,69 +1,22 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { DrillCard } from "~/components/drill-card";
 import { QnaHint } from "~/components/qna-hint";
 import { VisualsToggle } from "~/components/visuals-toggle";
 import {
-  ASK_POSITION_PROMPT,
-  acknowledgePosition,
-  breakdownFeedback,
-  type Drill,
-} from "~/lib/soccer-feedback";
+  CHATS_KEY,
+  type Chat,
+  type ChatMessage,
+  DEFAULT_TITLE,
+  FOLDERS_KEY,
+  type Folder,
+  loadJson,
+  newChat,
+} from "~/lib/drill-storage";
+import { acknowledgePosition, breakdownFeedback } from "~/lib/soccer-feedback";
 import { cn } from "~/lib/utils";
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  drills?: Drill[];
-  outro?: string;
-}
-
-interface Chat {
-  id: string;
-  title: string;
-  folderId: string | null;
-  position: string | null;
-  messages: ChatMessage[];
-  updatedAt: number;
-}
-
-interface Folder {
-  id: string;
-  name: string;
-}
-
-const CHATS_KEY = "athlete-helper-chats";
-const FOLDERS_KEY = "athlete-helper-folders";
-const DEFAULT_TITLE = "New chat";
-
-function loadJson<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function newChat(): Chat {
-  return {
-    id: crypto.randomUUID(),
-    title: DEFAULT_TITLE,
-    folderId: null,
-    position: null,
-    messages: [
-      {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: ASK_POSITION_PROMPT,
-      },
-    ],
-    updatedAt: Date.now(),
-  };
-}
 
 export function DrillsChat() {
   const [chats, setChats] = useState<Chat[]>([]);
@@ -80,12 +33,18 @@ export function DrillsChat() {
   const [showVisuals, setShowVisuals] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchParams = useSearchParams();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only read the ?chat= param on initial load, not on every navigation
   useEffect(() => {
     const loadedChats = loadJson<Chat[]>(CHATS_KEY, []);
     setChats(loadedChats);
     setFolders(loadJson<Folder[]>(FOLDERS_KEY, []));
-    setSelectedId(loadedChats[0]?.id ?? null);
+    const requestedId = searchParams.get("chat");
+    const initialId = loadedChats.some((c) => c.id === requestedId)
+      ? requestedId
+      : (loadedChats[0]?.id ?? null);
+    setSelectedId(initialId);
     setHydrated(true);
   }, []);
 
