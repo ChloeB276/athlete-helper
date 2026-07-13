@@ -21,8 +21,6 @@ const FEATURES = [
     title: "Drills",
     description:
       "Turn every piece of feedback into a structured drill you can revisit before the next session.",
-    href: "/drills",
-    cta: "Explore Drills",
     image: "https://images.unsplash.com/photo-1606925797300-0b35e9d1794e",
     imageAlt: "Player controlling a soccer ball at their feet",
   },
@@ -30,8 +28,6 @@ const FEATURES = [
     title: "AI Coach",
     description:
       "Get a position-specific breakdown of your coach's feedback in seconds.",
-    href: "/demo",
-    cta: "Try the Demo",
     image: "https://images.unsplash.com/photo-1574772135913-d519461c3996",
     imageAlt: "Coach carrying a bag of soccer balls across a foggy pitch",
   },
@@ -39,8 +35,6 @@ const FEATURES = [
     title: "Every Position",
     description:
       "Goalkeeper to striker — get drills tuned to what your role actually demands.",
-    href: "/drills",
-    cta: "See How It Works",
     image: "https://images.unsplash.com/photo-1626248801379-51a0748a5f96",
     imageAlt: "Two players from opposing teams battling for the ball",
   },
@@ -114,37 +108,28 @@ export default function Home() {
       {/* Feature grid */}
       <section className="mx-auto grid w-full max-w-6xl gap-6 px-6 py-20 sm:grid-cols-3">
         {FEATURES.map((feature) => (
-          <Link
+          <div
             key={feature.title}
-            href={feature.href}
-            className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-foreground"
+            className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card"
           >
             <div className="relative aspect-4/3 overflow-hidden">
               <Image
                 src={feature.image}
                 alt={feature.imageAlt}
                 fill
-                className="object-cover transition-transform duration-300 group-hover:scale-105"
+                className="object-cover"
                 sizes="(min-width: 640px) 33vw, 100vw"
               />
             </div>
-            <div className="flex flex-1 flex-col justify-between gap-4 p-8">
-              <div className="flex flex-col gap-3">
-                <h2 className="text-2xl font-bold tracking-tight uppercase">
-                  {feature.title}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {feature.description}
-                </p>
-              </div>
-              <span className="inline-flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
-                {feature.cta}
-                <span className="transition-transform group-hover:translate-x-1">
-                  →
-                </span>
-              </span>
+            <div className="flex flex-1 flex-col gap-3 p-8">
+              <h2 className="text-2xl font-bold tracking-tight uppercase">
+                {feature.title}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {feature.description}
+              </p>
             </div>
-          </Link>
+          </div>
         ))}
       </section>
 

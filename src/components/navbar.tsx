@@ -6,13 +6,15 @@ import { usePathname } from "next/navigation";
 import { signOut } from "~/lib/auth-actions";
 import { cn } from "~/lib/utils";
 
-const links = [
-  { href: "/", label: "Home" },
-  { href: "/drills", label: "Drills" },
-];
-
 export function Navbar({ user }: { user: User | null }) {
   const pathname = usePathname();
+
+  const links = [
+    { href: "/", label: "Home" },
+    user
+      ? { href: "/drills", label: "Drills" }
+      : { href: "/demo", label: "Demo" },
+  ];
 
   return (
     <nav className="border-b border-border bg-background">
@@ -37,12 +39,6 @@ export function Navbar({ user }: { user: User | null }) {
           ))}
         </div>
         <div className="ml-auto flex items-center gap-3">
-          <Link
-            href="/demo"
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Demo
-          </Link>
           {user ? (
             <form action={signOut}>
               <button
