@@ -68,7 +68,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-t from-foreground via-foreground/60 to-foreground/10" />
         <div className="relative mx-auto flex max-w-5xl flex-col items-start gap-6 px-6 py-28 sm:py-36">
           <span className="rounded-full bg-brand px-3 py-1 text-xs font-semibold tracking-widest text-brand-foreground uppercase">
-            Built for soccer
+            Built for athletes by athletes
           </span>
           <h1 className="text-3xl leading-[0.95] font-bold tracking-tight uppercase sm:text-5xl md:text-7xl lg:text-8xl">
             Turn Feedback
