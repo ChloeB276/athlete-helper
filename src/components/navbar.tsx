@@ -9,12 +9,9 @@ import { cn } from "~/lib/utils";
 export function Navbar({ user }: { user: User | null }) {
   const pathname = usePathname();
 
-  const links = [
-    { href: "/", label: "Home" },
-    user
-      ? { href: "/drills", label: "Drills" }
-      : { href: "/demo", label: "Demo" },
-  ];
+  const link = user
+    ? { href: "/drills", label: "Drills" }
+    : { href: "/demo", label: "Demo" };
 
   return (
     <nav className="border-b border-border bg-background">
@@ -22,22 +19,17 @@ export function Navbar({ user }: { user: User | null }) {
         <Link href="/" className="font-semibold tracking-tight">
           Athlete Helper
         </Link>
-        <div className="flex gap-4">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "text-sm transition-colors hover:text-foreground",
-                pathname === link.href
-                  ? "text-foreground"
-                  : "text-muted-foreground",
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </div>
+        <Link
+          href={link.href}
+          className={cn(
+            "text-sm transition-colors hover:text-foreground",
+            pathname === link.href
+              ? "text-foreground"
+              : "text-muted-foreground",
+          )}
+        >
+          {link.label}
+        </Link>
         <div className="ml-auto flex items-center gap-3">
           {user ? (
             <form action={signOut}>

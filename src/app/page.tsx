@@ -82,10 +82,10 @@ export default function Home() {
               Try the Demo
             </Link>
             <Link
-              href="/drills"
+              href="/signup"
               className="rounded-full border border-background px-6 py-3 text-sm font-bold tracking-wide uppercase transition-colors hover:bg-background hover:text-foreground"
             >
-              View Drills
+              Start Now
             </Link>
           </div>
         </div>
