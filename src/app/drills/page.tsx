@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-interface Note {
+interface Drill {
   id: string;
   title: string;
   content: string;
@@ -10,7 +10,7 @@ interface Note {
   updatedAt: number;
 }
 
-const STORAGE_KEY = "lumos-notes";
+const STORAGE_KEY = "lumos-drills";
 
 const TEXT_COLOR_OPTIONS = [
   { label: "Default", value: "" },
@@ -21,80 +21,80 @@ const TEXT_COLOR_OPTIONS = [
   { label: "Purple", value: "#a855f7" },
 ];
 
-function loadNotes(): Note[] {
+function loadDrills(): Drill[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Note[]) : [];
+    return raw ? (JSON.parse(raw) as Drill[]) : [];
   } catch {
     return [];
   }
 }
 
-function saveNotes(notes: Note[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+function saveDrills(drills: Drill[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(drills));
 }
 
-export default function NotesPage() {
-  const [notes, setNotes] = useState<Note[]>([]);
+export default function DrillsPage() {
+  const [drills, setDrills] = useState<Drill[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [color, setColor] = useState("");
 
   useEffect(() => {
-    setNotes(loadNotes());
+    setDrills(loadDrills());
   }, []);
 
-  const selected = notes.find((n) => n.id === selectedId) ?? null;
+  const selected = drills.find((d) => d.id === selectedId) ?? null;
 
-  function selectNote(note: Note) {
-    setSelectedId(note.id);
-    setTitle(note.title);
-    setContent(note.content);
-    setColor(note.color ?? "");
+  function selectDrill(drill: Drill) {
+    setSelectedId(drill.id);
+    setTitle(drill.title);
+    setContent(drill.content);
+    setColor(drill.color ?? "");
   }
 
-  function createNote() {
-    const note: Note = {
+  function createDrill() {
+    const drill: Drill = {
       id: crypto.randomUUID(),
       title: "Untitled",
       content: "",
       color: "",
       updatedAt: Date.now(),
     };
-    setNotes((prev) => {
-      const next = [note, ...prev];
-      saveNotes(next);
+    setDrills((prev) => {
+      const next = [drill, ...prev];
+      saveDrills(next);
       return next;
     });
-    selectNote(note);
+    selectDrill(drill);
   }
 
-  function updateNote(overrideColor?: string) {
+  function updateDrill(overrideColor?: string) {
     if (!selectedId) return;
     const nextColor = overrideColor ?? color;
-    setNotes((prev) => {
-      const next = prev.map((n) =>
-        n.id === selectedId
-          ? { ...n, title, content, color: nextColor, updatedAt: Date.now() }
-          : n,
+    setDrills((prev) => {
+      const next = prev.map((d) =>
+        d.id === selectedId
+          ? { ...d, title, content, color: nextColor, updatedAt: Date.now() }
+          : d,
       );
-      saveNotes(next);
+      saveDrills(next);
       return next;
     });
   }
 
   function selectColor(newColor: string) {
     setColor(newColor);
-    updateNote(newColor);
+    updateDrill(newColor);
   }
 
-  function deleteNote() {
+  function deleteDrill() {
     if (!selectedId) return;
-    setNotes((prev) => {
-      const next = prev.filter((n) => n.id !== selectedId);
-      saveNotes(next);
+    setDrills((prev) => {
+      const next = prev.filter((d) => d.id !== selectedId);
+      saveDrills(next);
       return next;
     });
     setSelectedId(null);
@@ -106,38 +106,38 @@ export default function NotesPage() {
   return (
     <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-3xl flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Notes</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Drills</h1>
         <button
           type="button"
-          onClick={createNote}
+          onClick={createDrill}
           className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
-          New Note
+          New Drill
         </button>
       </div>
 
       <div className="grid flex-1 grid-cols-[240px_1fr] gap-4 overflow-hidden rounded-lg border border-border">
         {/* Sidebar */}
         <div className="flex flex-col gap-1 overflow-y-auto border-r border-border p-2">
-          {notes.length === 0 && (
+          {drills.length === 0 && (
             <p className="p-3 text-sm text-muted-foreground">
-              No notes yet. Create one to get started.
+              No drills yet. Create one to get started.
             </p>
           )}
-          {notes.map((note) => (
+          {drills.map((drill) => (
             <button
               type="button"
-              key={note.id}
-              onClick={() => selectNote(note)}
+              key={drill.id}
+              onClick={() => selectDrill(drill)}
               className={`rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                note.id === selectedId
+                drill.id === selectedId
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
               }`}
             >
-              <span className="block truncate font-medium">{note.title}</span>
+              <span className="block truncate font-medium">{drill.title}</span>
               <span className="block truncate text-xs opacity-60">
-                {new Date(note.updatedAt).toLocaleDateString()}
+                {new Date(drill.updatedAt).toLocaleDateString()}
               </span>
             </button>
           ))}
@@ -151,8 +151,8 @@ export default function NotesPage() {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                onBlur={() => updateNote()}
-                placeholder="Note title"
+                onBlur={() => updateDrill()}
+                placeholder="Drill title"
                 className="bg-transparent text-lg font-semibold outline-none placeholder:text-muted-foreground"
               />
               <div className="flex items-center gap-2">
@@ -179,7 +179,7 @@ export default function NotesPage() {
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                onBlur={() => updateNote()}
+                onBlur={() => updateDrill()}
                 placeholder="Start writing..."
                 style={color ? { color } : undefined}
                 className="flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
@@ -187,7 +187,7 @@ export default function NotesPage() {
               <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={deleteNote}
+                  onClick={deleteDrill}
                   className="rounded-md px-3 py-1.5 text-sm text-destructive transition-colors hover:bg-destructive/10"
                 >
                   Delete
@@ -196,7 +196,7 @@ export default function NotesPage() {
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-              Select a note or create a new one
+              Select a drill or create a new one
             </div>
           )}
         </div>
