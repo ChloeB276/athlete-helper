@@ -148,6 +148,116 @@ export default function Home() {
         ))}
       </section>
 
+      {/* How it works */}
+      <section className="mx-auto w-full max-w-6xl px-6 py-20">
+        <div className="mx-auto mb-12 flex max-w-xl flex-col items-center gap-3 text-center">
+          <span className="text-xs font-bold tracking-widest text-brand uppercase">
+            How It Works
+          </span>
+          <h2 className="text-2xl font-bold tracking-tight uppercase sm:text-4xl">
+            From Feedback To Drill
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Hover each step to see it in action.
+          </p>
+        </div>
+
+        <div className="grid gap-6 sm:grid-cols-3">
+          {/* Step 1: Input */}
+          <div className="group relative h-80 overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-foreground">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center transition-opacity duration-300 group-hover:opacity-0">
+              <span className="text-xs font-bold tracking-widest text-brand uppercase">
+                Step 01
+              </span>
+              <span className="text-3xl font-bold tracking-tight uppercase">
+                Input
+              </span>
+              <p className="max-w-[16rem] text-sm text-muted-foreground">
+                Type in feedback from your coach
+              </p>
+            </div>
+            <div className="absolute inset-0 flex flex-col justify-end gap-3 p-6 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+              <div className="self-start rounded-2xl bg-muted px-4 py-2.5 text-sm text-muted-foreground">
+                Hey! What feedback did your coach give you?
+              </div>
+              <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5">
+                <span className="text-sm text-foreground">
+                  My coach said I need a quicker first touch
+                  <span
+                    aria-hidden="true"
+                    className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-brand align-middle"
+                  />
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 2: Processing */}
+          <div className="group relative h-80 overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-foreground">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center transition-opacity duration-300 group-hover:opacity-0">
+              <span className="text-xs font-bold tracking-widest text-brand uppercase">
+                Step 02
+              </span>
+              <span className="text-3xl font-bold tracking-tight uppercase">
+                Processing
+              </span>
+              <p className="max-w-[16rem] text-sm text-muted-foreground">
+                AI configures a plan around your position
+              </p>
+            </div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+              <div
+                aria-hidden="true"
+                className="h-10 w-10 animate-spin rounded-full border-2 border-border border-t-brand"
+              />
+              <p className="text-sm font-semibold tracking-wide text-foreground uppercase">
+                Configuring your drill plan
+              </p>
+              <div aria-hidden="true" className="flex gap-1.5">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand [animation-delay:-0.3s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand [animation-delay:-0.15s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand" />
+              </div>
+            </div>
+          </div>
+
+          {/* Step 3: Output */}
+          <div className="group relative h-80 overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-foreground">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center transition-opacity duration-300 group-hover:opacity-0">
+              <span className="text-xs font-bold tracking-widest text-brand uppercase">
+                Step 03
+              </span>
+              <span className="text-3xl font-bold tracking-tight uppercase">
+                Output
+              </span>
+              <p className="max-w-[16rem] text-sm text-muted-foreground">
+                Get a structured drill you can run today
+              </p>
+            </div>
+            <div className="absolute inset-0 flex flex-col justify-between gap-4 p-6 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+              <div className="rounded-2xl bg-muted/60 px-4 py-3 text-left text-sm">
+                <p className="font-semibold text-foreground">
+                  Drill: First-Touch Control
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  4 sets of 5 minutes of wall-pass touch-and-turn reps, building
+                  from walk-through pace to full match speed.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <span
+                  aria-hidden="true"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border text-xs font-bold text-foreground"
+                >
+                  ?
+                </span>
+                Got more questions? Just ask.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Editorial image break */}
       <section className="relative flex min-h-[320px] items-center justify-center overflow-hidden">
         <Image
