@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { DrillCard } from "~/components/drill-card";
+import { QnaHint } from "~/components/qna-hint";
+import { VisualsToggle } from "~/components/visuals-toggle";
 import {
   ASK_POSITION_PROMPT,
   acknowledgePosition,
   breakdownFeedback,
+  type Drill,
 } from "~/lib/soccer-feedback";
 import { cn } from "~/lib/utils";
 
@@ -12,6 +16,8 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  drills?: Drill[];
+  outro?: string;
 }
 
 interface Chat {
@@ -71,7 +77,9 @@ export default function DrillsPage() {
   const [draftName, setDraftName] = useState("");
   const [input, setInput] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  const [showVisuals, setShowVisuals] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const loadedChats = loadJson<Chat[]>(CHATS_KEY, []);
@@ -169,19 +177,25 @@ export default function DrillsPage() {
       content: trimmed,
     };
 
-    let replyContent: string;
+    let assistantMessage: ChatMessage;
     let nextPosition = selected.position;
     if (!selected.position) {
       nextPosition = trimmed;
-      replyContent = acknowledgePosition(trimmed);
+      assistantMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: acknowledgePosition(trimmed),
+      };
     } else {
-      replyContent = breakdownFeedback(trimmed, selected.position);
+      const breakdown = breakdownFeedback(trimmed, selected.position);
+      assistantMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: breakdown.intro,
+        drills: breakdown.drills,
+        outro: breakdown.outro,
+      };
     }
-    const assistantMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content: replyContent,
-    };
 
     const shouldAutoTitle =
       selected.title === DEFAULT_TITLE && selected.position;
@@ -200,6 +214,45 @@ export default function DrillsPage() {
       ),
     );
     setInput("");
+  }
+
+  function toggleKeepDrill(chatId: string, messageId: string, drillId: string) {
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === chatId
+          ? {
+              ...c,
+              messages: c.messages.map((m) =>
+                m.id === messageId
+                  ? {
+                      ...m,
+                      drills: m.drills?.map((d) =>
+                        d.id === drillId ? { ...d, kept: !d.kept } : d,
+                      ),
+                    }
+                  : m,
+              ),
+            }
+          : c,
+      ),
+    );
+  }
+
+  function deleteDrill(chatId: string, messageId: string, drillId: string) {
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === chatId
+          ? {
+              ...c,
+              messages: c.messages.map((m) =>
+                m.id === messageId
+                  ? { ...m, drills: m.drills?.filter((d) => d.id !== drillId) }
+                  : m,
+              ),
+            }
+          : c,
+      ),
+    );
   }
 
   return (
@@ -349,6 +402,12 @@ export default function DrillsPage() {
                   {selected.position}
                 </span>
               )}
+              <div className="ml-auto">
+                <VisualsToggle
+                  enabled={showVisuals}
+                  onToggle={() => setShowVisuals((v) => !v)}
+                />
+              </div>
             </div>
 
             <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
@@ -362,13 +421,38 @@ export default function DrillsPage() {
                 >
                   <div
                     className={cn(
-                      "max-w-[75%] whitespace-pre-line text-sm leading-relaxed",
+                      "max-w-[75%] text-sm leading-relaxed",
                       message.role === "user"
                         ? "rounded-2xl bg-muted px-4 py-2.5 text-foreground"
                         : "px-1 text-foreground",
                     )}
                   >
-                    {message.content}
+                    <p className="whitespace-pre-line">{message.content}</p>
+                    {message.drills && message.drills.length > 0 && (
+                      <div className="mt-3 space-y-3">
+                        {message.drills.map((drill) => (
+                          <DrillCard
+                            key={drill.id}
+                            drill={drill}
+                            showVisuals={showVisuals}
+                            onToggleKeep={() =>
+                              toggleKeepDrill(selected.id, message.id, drill.id)
+                            }
+                            onDelete={() =>
+                              deleteDrill(selected.id, message.id, drill.id)
+                            }
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {message.outro && (
+                      <p className="mt-3 whitespace-pre-line">
+                        {message.outro}
+                      </p>
+                    )}
+                    {message.role === "assistant" && (
+                      <QnaHint onAsk={() => inputRef.current?.focus()} />
+                    )}
                   </div>
                 </div>
               ))}
@@ -384,6 +468,7 @@ export default function DrillsPage() {
                 className="mx-auto flex max-w-3xl items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-sm"
               >
                 <input
+                  ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={
