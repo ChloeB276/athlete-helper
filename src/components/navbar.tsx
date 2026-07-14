@@ -6,7 +6,13 @@ import { usePathname } from "next/navigation";
 import { signOut } from "~/lib/auth-actions";
 import { cn } from "~/lib/utils";
 
-export function Navbar({ user }: { user: User | null }) {
+export function Navbar({
+  user,
+  isAdmin,
+}: {
+  user: User | null;
+  isAdmin: boolean;
+}) {
   const pathname = usePathname();
 
   const link = user
@@ -30,6 +36,19 @@ export function Navbar({ user }: { user: User | null }) {
         >
           {link.label}
         </Link>
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className={cn(
+              "text-sm transition-colors hover:text-foreground",
+              pathname === "/admin"
+                ? "text-foreground"
+                : "text-muted-foreground",
+            )}
+          >
+            Admin
+          </Link>
+        )}
         <div className="ml-auto flex items-center gap-3">
           {user ? (
             <form action={signOut}>
