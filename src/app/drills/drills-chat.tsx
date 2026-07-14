@@ -6,16 +6,27 @@ import { DrillCard } from "~/components/drill-card";
 import { QnaHint } from "~/components/qna-hint";
 import { VisualsToggle } from "~/components/visuals-toggle";
 import {
-  CHATS_KEY,
   type Chat,
   type ChatMessage,
   DEFAULT_TITLE,
-  FOLDERS_KEY,
   type Folder,
-  loadJson,
   newChat,
 } from "~/lib/drill-storage";
 import { acknowledgePosition, breakdownFeedback } from "~/lib/soccer-feedback";
+import {
+  appendMessagesRecord,
+  createChatRecord,
+  createFolderRecord,
+  deleteChatRecord,
+  deleteDrillRecord,
+  deleteFolderRecord,
+  fetchChats,
+  fetchFolders,
+  moveChatRecord,
+  renameChatRecord,
+  renameFolderRecord,
+  toggleKeepDrillRecord,
+} from "~/lib/supabase/drills-repo";
 import { cn } from "~/lib/utils";
 
 export function DrillsChat() {
@@ -29,7 +40,6 @@ export function DrillsChat() {
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const [input, setInput] = useState("");
-  const [hydrated, setHydrated] = useState(false);
   const [showVisuals, setShowVisuals] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -37,26 +47,26 @@ export function DrillsChat() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: only read the ?chat= param on initial load, not on every navigation
   useEffect(() => {
-    const loadedChats = loadJson<Chat[]>(CHATS_KEY, []);
-    setChats(loadedChats);
-    setFolders(loadJson<Folder[]>(FOLDERS_KEY, []));
-    const requestedId = searchParams.get("chat");
-    const initialId = loadedChats.some((c) => c.id === requestedId)
-      ? requestedId
-      : (loadedChats[0]?.id ?? null);
-    setSelectedId(initialId);
-    setHydrated(true);
+    let cancelled = false;
+    async function load() {
+      const [loadedChats, loadedFolders] = await Promise.all([
+        fetchChats(),
+        fetchFolders(),
+      ]);
+      if (cancelled) return;
+      setChats(loadedChats);
+      setFolders(loadedFolders);
+      const requestedId = searchParams.get("chat");
+      const initialId = loadedChats.some((c) => c.id === requestedId)
+        ? requestedId
+        : (loadedChats[0]?.id ?? null);
+      setSelectedId(initialId);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(CHATS_KEY, JSON.stringify(chats));
-  }, [chats, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
-  }, [folders, hydrated]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll whenever the selected chat or its messages change
   useEffect(() => {
@@ -80,6 +90,7 @@ export function DrillsChat() {
     setChats((prev) => [chat, ...prev]);
     setSelectedId(chat.id);
     setInput("");
+    createChatRecord(chat).catch((error) => console.error(error));
   }
 
   function createFolder() {
@@ -87,35 +98,36 @@ export function DrillsChat() {
     setFolders((prev) => [folder, ...prev]);
     setEditingFolderId(folder.id);
     setDraftName(folder.name);
+    createFolderRecord(folder).catch((error) => console.error(error));
   }
 
   function renameChat(id: string, title: string) {
-    const trimmed = title.trim();
+    const finalTitle = title.trim() || DEFAULT_TITLE;
     setChats((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, title: trimmed || DEFAULT_TITLE } : c,
-      ),
+      prev.map((c) => (c.id === id ? { ...c, title: finalTitle } : c)),
     );
     setEditingChatId(null);
+    renameChatRecord(id, finalTitle).catch((error) => console.error(error));
   }
 
   function renameFolder(id: string, name: string) {
-    const trimmed = name.trim();
+    const finalName = name.trim() || "Untitled folder";
     setFolders((prev) =>
-      prev.map((f) =>
-        f.id === id ? { ...f, name: trimmed || "Untitled folder" } : f,
-      ),
+      prev.map((f) => (f.id === id ? { ...f, name: finalName } : f)),
     );
     setEditingFolderId(null);
+    renameFolderRecord(id, finalName).catch((error) => console.error(error));
   }
 
   function moveChat(id: string, folderId: string | null) {
     setChats((prev) => prev.map((c) => (c.id === id ? { ...c, folderId } : c)));
+    moveChatRecord(id, folderId).catch((error) => console.error(error));
   }
 
   function deleteChat(id: string) {
     setChats((prev) => prev.filter((c) => c.id !== id));
     if (selectedId === id) setSelectedId(null);
+    deleteChatRecord(id).catch((error) => console.error(error));
   }
 
   function deleteFolder(id: string) {
@@ -123,6 +135,7 @@ export function DrillsChat() {
     setChats((prev) =>
       prev.map((c) => (c.folderId === id ? { ...c, folderId: null } : c)),
     );
+    deleteFolderRecord(id).catch((error) => console.error(error));
   }
 
   function sendMessage() {
@@ -158,6 +171,8 @@ export function DrillsChat() {
 
     const shouldAutoTitle =
       selected.title === DEFAULT_TITLE && selected.position;
+    const nextTitle = shouldAutoTitle ? trimmed.slice(0, 40) : selected.title;
+    const updatedAt = Date.now();
 
     setChats((prev) =>
       prev.map((c) =>
@@ -165,17 +180,32 @@ export function DrillsChat() {
           ? {
               ...c,
               position: nextPosition,
-              title: shouldAutoTitle ? trimmed.slice(0, 40) : c.title,
+              title: nextTitle,
               messages: [...c.messages, userMessage, assistantMessage],
-              updatedAt: Date.now(),
+              updatedAt,
             }
           : c,
       ),
     );
     setInput("");
+
+    appendMessagesRecord({
+      chatId: selected.id,
+      userMessage,
+      assistantMessage,
+      position: nextPosition,
+      title: nextTitle,
+      updatedAt,
+    }).catch((error) => console.error(error));
   }
 
   function toggleKeepDrill(chatId: string, messageId: string, drillId: string) {
+    const targetDrill = chats
+      .find((c) => c.id === chatId)
+      ?.messages.find((m) => m.id === messageId)
+      ?.drills?.find((d) => d.id === drillId);
+    const nextKept = !targetDrill?.kept;
+
     setChats((prev) =>
       prev.map((c) =>
         c.id === chatId
@@ -186,7 +216,7 @@ export function DrillsChat() {
                   ? {
                       ...m,
                       drills: m.drills?.map((d) =>
-                        d.id === drillId ? { ...d, kept: !d.kept } : d,
+                        d.id === drillId ? { ...d, kept: nextKept } : d,
                       ),
                     }
                   : m,
@@ -194,6 +224,9 @@ export function DrillsChat() {
             }
           : c,
       ),
+    );
+    toggleKeepDrillRecord(drillId, nextKept).catch((error) =>
+      console.error(error),
     );
   }
 
@@ -212,6 +245,7 @@ export function DrillsChat() {
           : c,
       ),
     );
+    deleteDrillRecord(drillId).catch((error) => console.error(error));
   }
 
   return (

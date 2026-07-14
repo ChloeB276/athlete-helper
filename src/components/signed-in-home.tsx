@@ -3,13 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { HelpWidget } from "~/components/help-widget";
-import {
-  CHATS_KEY,
-  type Chat,
-  FOLDERS_KEY,
-  type Folder,
-  loadJson,
-} from "~/lib/drill-storage";
+import type { Chat, Folder } from "~/lib/drill-storage";
+import { fetchChats, fetchFolders } from "~/lib/supabase/drills-repo";
 
 export function SignedInHome() {
   const [chats, setChats] = useState<Chat[]>([]);
@@ -17,9 +12,21 @@ export function SignedInHome() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setChats(loadJson<Chat[]>(CHATS_KEY, []));
-    setFolders(loadJson<Folder[]>(FOLDERS_KEY, []));
-    setHydrated(true);
+    let cancelled = false;
+    async function load() {
+      const [loadedChats, loadedFolders] = await Promise.all([
+        fetchChats(),
+        fetchFolders(),
+      ]);
+      if (cancelled) return;
+      setChats(loadedChats);
+      setFolders(loadedFolders);
+      setHydrated(true);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!hydrated) return null;

@@ -22,19 +22,7 @@ export interface Folder {
   name: string;
 }
 
-export const CHATS_KEY = "athlete-helper-chats";
-export const FOLDERS_KEY = "athlete-helper-folders";
 export const DEFAULT_TITLE = "New chat";
-
-export function loadJson<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 export function newChat(): Chat {
   return {
