@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { createClient } from "~/lib/supabase/server";
 import { DrillsChat } from "./drills-chat";
 
@@ -12,5 +13,9 @@ export default async function DrillsPage() {
     redirect("/login");
   }
 
-  return <DrillsChat />;
+  return (
+    <Suspense fallback={null}>
+      <DrillsChat />
+    </Suspense>
+  );
 }
