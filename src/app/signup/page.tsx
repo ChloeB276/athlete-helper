@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { GoogleSignInButton } from "~/components/google-sign-in-button";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -61,6 +62,12 @@ export default function SignupPage() {
               {pending ? "Signing up..." : "Sign Up"}
             </Button>
           </form>
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground uppercase">Or</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+          <GoogleSignInButton />
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link href="/login" className="font-medium text-foreground">
