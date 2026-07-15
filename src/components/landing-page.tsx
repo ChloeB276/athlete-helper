@@ -50,50 +50,62 @@ export function LandingPage() {
   return (
     <main className="flex flex-col">
       {/* Hero */}
-      <section className="relative overflow-hidden bg-foreground text-background">
-        <Image
-          src="https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a"
-          alt="Soccer player taking a shot on goal under stadium lights at night"
-          fill
-          priority
-          className="object-cover"
-          sizes="100vw"
+      <section className="relative overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-br from-accent-a/40 via-background to-accent-b/30"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground via-foreground/60 to-foreground/10" />
-        <div className="relative mx-auto flex max-w-5xl flex-col items-start gap-6 px-6 py-28 sm:py-36">
-          <span className="rounded-full bg-brand px-3 py-1 text-xs font-semibold tracking-widest text-brand-foreground uppercase">
-            Built for athletes by athletes
-          </span>
-          <h1 className="text-3xl leading-[0.95] font-bold tracking-tight uppercase sm:text-5xl md:text-7xl lg:text-8xl">
-            Turn Feedback
-            <br />
-            Into Your
-            <br />
-            Next Level
-          </h1>
-          <p className="max-w-md text-lg text-background/80">
-            Turn any feedback into instant drills curated to you.
-          </p>
-          <div className="flex flex-wrap gap-4 pt-2">
-            <Link
-              href="/demo"
-              className="rounded-full bg-brand px-6 py-3 text-sm font-bold tracking-wide text-brand-foreground uppercase transition-transform hover:scale-105"
-            >
-              Try the Demo
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-full border border-background px-6 py-3 text-sm font-bold tracking-wide uppercase transition-colors hover:bg-background hover:text-foreground"
-            >
-              Start Now
-            </Link>
+        <div
+          aria-hidden="true"
+          className="absolute -top-32 -right-24 h-96 w-96 rounded-full bg-accent-b/40 blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-accent-a/40 blur-3xl"
+        />
+        <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-20 sm:py-28 lg:grid-cols-2 lg:items-center">
+          <div className="flex flex-col items-start gap-6">
+            <span className="rounded-full bg-card px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-soft">
+              Built for athletes, by athletes
+            </span>
+            <h1 className="text-4xl leading-tight font-bold tracking-tight sm:text-5xl md:text-6xl">
+              Turn feedback into your next level
+            </h1>
+            <p className="max-w-md text-lg text-muted-foreground">
+              Turn any feedback into instant, position-specific drills curated
+              just for you.
+            </p>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Link
+                href="/demo"
+                className="rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition-transform hover:scale-105"
+              >
+                Try the Demo
+              </Link>
+              <Link
+                href="/signup"
+                className="rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground shadow-soft transition-colors hover:bg-accent"
+              >
+                Start Now
+              </Link>
+            </div>
+          </div>
+          <div className="relative aspect-4/3 overflow-hidden rounded-3xl shadow-soft lg:aspect-square">
+            <Image
+              src="https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a"
+              alt="Soccer player taking a shot on goal under stadium lights at night"
+              fill
+              priority
+              className="object-cover"
+              sizes="(min-width: 1024px) 50vw, 100vw"
+            />
           </div>
         </div>
       </section>
 
       {/* Ticker */}
-      <section className="overflow-hidden border-b border-border bg-muted py-4">
-        <div className="flex w-max animate-marquee gap-8 whitespace-nowrap text-sm font-bold tracking-widest text-muted-foreground uppercase">
+      <section className="overflow-hidden border-y border-border/60 bg-muted/50 py-4">
+        <div className="flex w-max animate-marquee gap-8 whitespace-nowrap text-sm font-medium text-muted-foreground">
           {TICKER_SEQUENCE.map((entry) => (
             <span key={entry.key} className="flex items-center gap-8">
               {entry.item}
@@ -110,7 +122,7 @@ export function LandingPage() {
         {FEATURES.map((feature) => (
           <div
             key={feature.title}
-            className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card"
+            className="flex flex-col overflow-hidden rounded-3xl bg-card shadow-soft"
           >
             <div className="relative aspect-4/3 overflow-hidden">
               <Image
@@ -122,7 +134,7 @@ export function LandingPage() {
               />
             </div>
             <div className="flex flex-1 flex-col gap-3 p-8">
-              <h2 className="text-2xl font-bold tracking-tight uppercase">
+              <h2 className="text-xl font-semibold tracking-tight">
                 {feature.title}
               </h2>
               <p className="text-sm text-muted-foreground">
@@ -136,11 +148,9 @@ export function LandingPage() {
       {/* How it works */}
       <section className="mx-auto w-full max-w-6xl px-6 py-20">
         <div className="mx-auto mb-12 flex max-w-xl flex-col items-center gap-3 text-center">
-          <span className="text-xs font-bold tracking-widest text-brand uppercase">
-            How It Works
-          </span>
-          <h2 className="text-2xl font-bold tracking-tight uppercase sm:text-4xl">
-            From Feedback To Drill
+          <span className="text-sm font-semibold text-brand">How It Works</span>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">
+            From feedback to drill
           </h2>
           <p className="text-sm text-muted-foreground">
             Hover each step to see it in action.
@@ -149,14 +159,10 @@ export function LandingPage() {
 
         <div className="grid gap-6 sm:grid-cols-3">
           {/* Step 1: Input */}
-          <div className="group relative h-80 overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-foreground">
+          <div className="group relative h-80 overflow-hidden rounded-3xl bg-card shadow-soft">
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center transition-opacity duration-300 group-hover:opacity-0">
-              <span className="text-xs font-bold tracking-widest text-brand uppercase">
-                Step 01
-              </span>
-              <span className="text-3xl font-bold tracking-tight uppercase">
-                Input
-              </span>
+              <span className="text-sm font-semibold text-brand">Step 01</span>
+              <span className="text-3xl font-bold tracking-tight">Input</span>
               <p className="max-w-[16rem] text-sm text-muted-foreground">
                 Type in feedback from your coach
               </p>
@@ -178,12 +184,10 @@ export function LandingPage() {
           </div>
 
           {/* Step 2: Processing */}
-          <div className="group relative h-80 overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-foreground">
+          <div className="group relative h-80 overflow-hidden rounded-3xl bg-card shadow-soft">
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center transition-opacity duration-300 group-hover:opacity-0">
-              <span className="text-xs font-bold tracking-widest text-brand uppercase">
-                Step 02
-              </span>
-              <span className="text-3xl font-bold tracking-tight uppercase">
+              <span className="text-sm font-semibold text-brand">Step 02</span>
+              <span className="text-3xl font-bold tracking-tight">
                 Processing
               </span>
               <p className="max-w-[16rem] text-sm text-muted-foreground">
@@ -195,7 +199,7 @@ export function LandingPage() {
                 aria-hidden="true"
                 className="h-10 w-10 animate-spin rounded-full border-2 border-border border-t-brand"
               />
-              <p className="text-sm font-semibold tracking-wide text-foreground uppercase">
+              <p className="text-sm font-medium text-foreground">
                 Configuring your drill plan
               </p>
               <div aria-hidden="true" className="flex gap-1.5">
@@ -207,14 +211,10 @@ export function LandingPage() {
           </div>
 
           {/* Step 3: Output */}
-          <div className="group relative h-80 overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-foreground">
+          <div className="group relative h-80 overflow-hidden rounded-3xl bg-card shadow-soft">
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center transition-opacity duration-300 group-hover:opacity-0">
-              <span className="text-xs font-bold tracking-widest text-brand uppercase">
-                Step 03
-              </span>
-              <span className="text-3xl font-bold tracking-tight uppercase">
-                Output
-              </span>
+              <span className="text-sm font-semibold text-brand">Step 03</span>
+              <span className="text-3xl font-bold tracking-tight">Output</span>
               <p className="max-w-[16rem] text-sm text-muted-foreground">
                 Get a structured drill you can run today
               </p>
@@ -244,33 +244,35 @@ export function LandingPage() {
       </section>
 
       {/* Editorial image break */}
-      <section className="relative flex min-h-[320px] items-center justify-center overflow-hidden">
-        <Image
-          src="https://images.unsplash.com/photo-1624280157150-4d1ed8632989"
-          alt="Two players battling for the ball on a sunlit pitch"
-          fill
-          className="object-cover"
-          sizes="100vw"
-        />
-        <div className="absolute inset-0 bg-foreground/50" />
-        <p className="relative max-w-2xl px-6 text-center text-2xl font-bold tracking-tight text-background uppercase sm:text-4xl">
-          Every Touch. Every Session.
-          <span className="text-brand"> Every Position.</span>
-        </p>
+      <section className="mx-auto w-full max-w-6xl px-6 py-4">
+        <div className="relative flex min-h-[280px] items-center justify-center overflow-hidden rounded-3xl shadow-soft">
+          <Image
+            src="https://images.unsplash.com/photo-1624280157150-4d1ed8632989"
+            alt="Two players battling for the ball on a sunlit pitch"
+            fill
+            className="object-cover"
+            sizes="(min-width: 1024px) 1152px, 100vw"
+          />
+          <div className="absolute inset-0 bg-foreground/45" />
+          <p className="relative max-w-2xl px-6 text-center text-2xl font-bold tracking-tight text-background sm:text-4xl">
+            Every touch. Every session.
+            <span className="text-accent-a"> Every position.</span>
+          </p>
+        </div>
       </section>
 
       {/* Stats band */}
-      <section className="border-y border-border bg-muted/40">
-        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8 px-6 py-16 sm:grid-cols-3">
+      <section className="mx-auto w-full max-w-6xl px-6 py-20">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           {STATS.map((stat) => (
             <div
               key={stat.label}
-              className="flex flex-col items-center gap-2 text-center"
+              className="flex flex-col items-center gap-2 rounded-3xl bg-card py-10 text-center shadow-soft"
             >
-              <span className="text-5xl font-bold tracking-tight">
+              <span className="text-4xl font-bold tracking-tight text-brand">
                 {stat.value}
               </span>
-              <span className="text-sm tracking-widest text-muted-foreground uppercase">
+              <span className="text-sm text-muted-foreground">
                 {stat.label}
               </span>
             </div>
@@ -279,21 +281,23 @@ export function LandingPage() {
       </section>
 
       {/* CTA band */}
-      <section className="bg-foreground text-background">
-        <div className="mx-auto flex max-w-4xl flex-col items-center gap-6 px-6 py-24 text-center">
-          <h2 className="text-2xl font-bold tracking-tight uppercase sm:text-4xl md:text-5xl">
-            Ready to Level Up Your Game?
-          </h2>
-          <p className="max-w-md text-background/80">
-            Get a position-specific breakdown of your next piece of coach
-            feedback in under a minute.
-          </p>
-          <Link
-            href="/demo"
-            className="rounded-full bg-brand px-8 py-3 text-sm font-bold tracking-wide text-brand-foreground uppercase transition-transform hover:scale-105"
-          >
-            Start with the Demo
-          </Link>
+      <section className="mx-auto w-full max-w-6xl px-6 pb-24">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent-a via-brand/80 to-accent-b text-background shadow-soft">
+          <div className="flex flex-col items-center gap-6 px-6 py-20 text-center">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+              Ready to level up your game?
+            </h2>
+            <p className="max-w-md text-background/85">
+              Get a position-specific breakdown of your next piece of coach
+              feedback in under a minute.
+            </p>
+            <Link
+              href="/demo"
+              className="rounded-full bg-background px-8 py-3 text-sm font-semibold text-foreground shadow-soft transition-transform hover:scale-105"
+            >
+              Start with the Demo
+            </Link>
+          </div>
         </div>
       </section>
     </main>
