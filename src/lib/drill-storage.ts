@@ -1,4 +1,8 @@
-import { ASK_POSITION_PROMPT, type Drill } from "~/lib/soccer-feedback";
+import {
+  ASK_POSITION_PROMPT,
+  type Drill,
+  greetingForPosition,
+} from "~/lib/soccer-feedback";
 
 export interface ChatMessage {
   id: string;
@@ -24,17 +28,17 @@ export interface Folder {
 
 export const DEFAULT_TITLE = "New chat";
 
-export function newChat(): Chat {
+export function newChat(position: string | null): Chat {
   return {
     id: crypto.randomUUID(),
     title: DEFAULT_TITLE,
     folderId: null,
-    position: null,
+    position,
     messages: [
       {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: ASK_POSITION_PROMPT,
+        content: position ? greetingForPosition(position) : ASK_POSITION_PROMPT,
       },
     ],
     updatedAt: Date.now(),

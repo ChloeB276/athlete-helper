@@ -109,3 +109,7 @@ export const ASK_POSITION_PROMPT =
 export function acknowledgePosition(position: string): string {
   return `Got it, you play ${position}. Now tell me some feedback your coach gave you, and I'll break it down into a detailed drill plan.`;
 }
+
+export function greetingForPosition(position: string): string {
+  return `Hi! I'm your Athlete Helper AI coach for soccer players. Tell me some feedback your coach gave you as a ${position}, and I'll break it down into a detailed drill plan.`;
+}

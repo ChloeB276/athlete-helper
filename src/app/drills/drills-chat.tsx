@@ -27,11 +27,13 @@ import {
   renameFolderRecord,
   toggleKeepDrillRecord,
 } from "~/lib/supabase/drills-repo";
+import { fetchProfilePositions } from "~/lib/supabase/profile-repo";
 import { cn } from "~/lib/utils";
 
 export function DrillsChat() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [defaultPosition, setDefaultPosition] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
     new Set(),
@@ -49,13 +51,15 @@ export function DrillsChat() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [loadedChats, loadedFolders] = await Promise.all([
+      const [loadedChats, loadedFolders, loadedPositions] = await Promise.all([
         fetchChats(),
         fetchFolders(),
+        fetchProfilePositions(),
       ]);
       if (cancelled) return;
       setChats(loadedChats);
       setFolders(loadedFolders);
+      setDefaultPosition(loadedPositions[0] ?? null);
       const requestedId = searchParams.get("chat");
       const initialId = loadedChats.some((c) => c.id === requestedId)
         ? requestedId
@@ -86,7 +90,7 @@ export function DrillsChat() {
   }
 
   function createChat() {
-    const chat = newChat();
+    const chat = newChat(defaultPosition);
     setChats((prev) => [chat, ...prev]);
     setSelectedId(chat.id);
     setInput("");
