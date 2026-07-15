@@ -24,18 +24,20 @@ export default async function OnboardingPage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-16">
-      <div className="flex flex-col gap-2">
-        <span className="text-xs font-bold tracking-widest text-brand uppercase">
-          One Last Thing
+      <div className="flex flex-col gap-2 text-center">
+        <span className="text-sm font-semibold text-brand">
+          🎉 One last thing
         </span>
-        <h1 className="text-3xl font-bold tracking-tight uppercase sm:text-4xl">
-          Tell Us About Your Game
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          Tell us about your game ⚽
         </h1>
         <p className="text-muted-foreground">
           This helps us tailor your drills to your position and footedness.
         </p>
       </div>
-      <OnboardingForm />
+      <div className="rounded-3xl bg-card p-6 shadow-soft sm:p-8">
+        <OnboardingForm />
+      </div>
     </div>
   );
 }
