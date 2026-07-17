@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { DrillCard } from "~/components/drill-card";
 import { QnaHint } from "~/components/qna-hint";
+import { TrainingContextForm } from "~/components/training-context-form";
 import { VisualsToggle } from "~/components/visuals-toggle";
 import {
   type Chat,
@@ -12,7 +13,13 @@ import {
   type Folder,
   newChat,
 } from "~/lib/drill-storage";
-import { acknowledgePosition, breakdownFeedback } from "~/lib/soccer-feedback";
+import {
+  acknowledgePosition,
+  acknowledgeTrainingContext,
+  breakdownFeedback,
+  describeTrainingContext,
+  type TrainingContext,
+} from "~/lib/soccer-feedback";
 import {
   appendMessagesRecord,
   createChatRecord,
@@ -26,6 +33,7 @@ import {
   renameChatRecord,
   renameFolderRecord,
   toggleKeepDrillRecord,
+  updateTrainingContextRecord,
 } from "~/lib/supabase/drills-repo";
 import { fetchProfilePositions } from "~/lib/supabase/profile-repo";
 import { cn } from "~/lib/utils";
@@ -143,6 +151,47 @@ export function DrillsChat() {
     deleteFolderRecord(id).catch((error) => console.error(error));
   }
 
+  function submitTrainingContext(context: TrainingContext) {
+    if (!selected) return;
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: describeTrainingContext(context),
+    };
+    const assistantMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: acknowledgeTrainingContext(),
+    };
+    const updatedAt = Date.now();
+
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === selected.id
+          ? {
+              ...c,
+              trainingContext: context,
+              messages: [...c.messages, userMessage, assistantMessage],
+              updatedAt,
+            }
+          : c,
+      ),
+    );
+
+    updateTrainingContextRecord(selected.id, context).catch((error) =>
+      console.error(error),
+    );
+    appendMessagesRecord({
+      chatId: selected.id,
+      userMessage,
+      assistantMessage,
+      position: selected.position,
+      title: selected.title,
+      updatedAt,
+    }).catch((error) => console.error(error));
+  }
+
   async function sendMessage() {
     if (!selected || sending) return;
     const trimmed = input.trim();
@@ -188,6 +237,11 @@ export function DrillsChat() {
       return;
     }
 
+    // The text input is only rendered once trainingContext is set (see the
+    // TrainingContextForm branch below), so this is always non-null here.
+    if (!selected.trainingContext) return;
+    const trainingContext = selected.trainingContext;
+
     setChats((prev) =>
       prev.map((c) =>
         c.id === selected.id
@@ -199,7 +253,11 @@ export function DrillsChat() {
     setSending(true);
     let assistantMessage: ChatMessage;
     try {
-      const breakdown = await breakdownFeedback(trimmed, selected.position);
+      const breakdown = await breakdownFeedback(
+        trimmed,
+        selected.position,
+        trainingContext,
+      );
       assistantMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -500,36 +558,40 @@ export function DrillsChat() {
             </div>
 
             <div className="p-4">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  sendMessage();
-                }}
-                className="mx-auto flex max-w-3xl items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-sm"
-              >
-                <input
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  disabled={sending}
-                  placeholder={
-                    sending
-                      ? "Thinking..."
-                      : selected.position
-                        ? "Describe some feedback..."
-                        : "e.g. center back, winger, goalkeeper..."
-                  }
-                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
-                />
-                <button
-                  type="submit"
-                  aria-label="Send"
-                  disabled={sending}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+              {selected.position && !selected.trainingContext ? (
+                <TrainingContextForm onSubmit={submitTrainingContext} />
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    sendMessage();
+                  }}
+                  className="mx-auto flex max-w-3xl items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-sm"
                 >
-                  →
-                </button>
-              </form>
+                  <input
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    disabled={sending}
+                    placeholder={
+                      sending
+                        ? "Searching for real drills..."
+                        : selected.position
+                          ? "Describe some feedback..."
+                          : "e.g. center back, winger, goalkeeper..."
+                    }
+                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
+                  />
+                  <button
+                    type="submit"
+                    aria-label="Send"
+                    disabled={sending}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+                  >
+                    →
+                  </button>
+                </form>
+              )}
             </div>
           </>
         ) : (

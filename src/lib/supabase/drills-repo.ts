@@ -1,5 +1,10 @@
 import type { Chat, ChatMessage, Folder } from "~/lib/drill-storage";
-import type { Drill, DrillDifficulty } from "~/lib/soccer-feedback";
+import type {
+  Drill,
+  DrillDifficulty,
+  Equipment,
+  TrainingContext,
+} from "~/lib/soccer-feedback";
 import { createClient } from "~/lib/supabase/client";
 
 interface DrillRow {
@@ -8,8 +13,9 @@ interface DrillRow {
   difficulty: string;
   title: string;
   description: string;
-  image_url: string;
-  video_url: string;
+  source_title: string | null;
+  image_url: string | null;
+  video_url: string | null;
   kept: boolean;
 }
 
@@ -27,6 +33,8 @@ interface ChatRow {
   folder_id: string | null;
   title: string;
   position: string | null;
+  training_partners: number | null;
+  training_equipment: string[] | null;
   updated_at: string;
   chat_messages: ChatMessageRow[];
 }
@@ -37,6 +45,7 @@ function mapDrill(row: DrillRow): Drill {
     difficulty: row.difficulty as DrillDifficulty,
     title: row.title,
     description: row.description,
+    sourceTitle: row.source_title,
     imageUrl: row.image_url,
     videoUrl: row.video_url,
     kept: row.kept,
@@ -60,11 +69,19 @@ function mapChat(row: ChatRow): Chat {
   const messages = [...row.chat_messages]
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
     .map(mapMessage);
+  const trainingContext: TrainingContext | null =
+    row.training_partners === null
+      ? null
+      : {
+          partners: row.training_partners,
+          equipment: (row.training_equipment ?? []) as Equipment[],
+        };
   return {
     id: row.id,
     title: row.title,
     folderId: row.folder_id,
     position: row.position,
+    trainingContext,
     messages,
     updatedAt: new Date(row.updated_at).getTime(),
   };
@@ -85,7 +102,7 @@ export async function fetchChats(): Promise<Chat[]> {
   const { data, error } = await supabase
     .from("chats")
     .select(
-      "id, folder_id, title, position, updated_at, chat_messages(id, role, content, outro, created_at, drills(id, position_index, difficulty, title, description, image_url, video_url, kept))",
+      "id, folder_id, title, position, training_partners, training_equipment, updated_at, chat_messages(id, role, content, outro, created_at, drills(id, position_index, difficulty, title, description, source_title, image_url, video_url, kept))",
     )
     .order("updated_at", { ascending: false });
   if (error) throw error;
@@ -141,6 +158,21 @@ export async function createChatRecord(chat: Chat): Promise<void> {
       });
     if (messageError) throw messageError;
   }
+}
+
+export async function updateTrainingContextRecord(
+  chatId: string,
+  trainingContext: TrainingContext,
+): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("chats")
+    .update({
+      training_partners: trainingContext.partners,
+      training_equipment: trainingContext.equipment,
+    })
+    .eq("id", chatId);
+  if (error) throw error;
 }
 
 export async function renameChatRecord(
@@ -212,6 +244,7 @@ export async function appendMessagesRecord(params: {
         difficulty: drill.difficulty,
         title: drill.title,
         description: drill.description,
+        source_title: drill.sourceTitle,
         image_url: drill.imageUrl,
         video_url: drill.videoUrl,
         kept: drill.kept,

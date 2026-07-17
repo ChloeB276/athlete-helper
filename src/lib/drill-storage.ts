@@ -2,6 +2,7 @@ import {
   ASK_POSITION_PROMPT,
   type Drill,
   greetingForPosition,
+  type TrainingContext,
 } from "~/lib/soccer-feedback";
 
 export interface ChatMessage {
@@ -17,6 +18,7 @@ export interface Chat {
   title: string;
   folderId: string | null;
   position: string | null;
+  trainingContext: TrainingContext | null;
   messages: ChatMessage[];
   updatedAt: number;
 }
@@ -34,6 +36,7 @@ export function newChat(position: string | null): Chat {
     title: DEFAULT_TITLE,
     folderId: null,
     position,
+    trainingContext: null,
     messages: [
       {
         id: crypto.randomUUID(),
