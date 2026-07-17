@@ -1,5 +1,5 @@
-import { config } from "dotenv";
 import { streamText } from "ai";
+import { config } from "dotenv";
 
 async function main() {
   config({ path: ".env.local" });
