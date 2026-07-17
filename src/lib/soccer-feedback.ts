@@ -47,59 +47,43 @@ function pickImage(index: number): string {
   return DRILL_IMAGES[index % DRILL_IMAGES.length] ?? DRILL_IMAGES[0] ?? "";
 }
 
-function buildDrills(feedback: string, position: string): Drill[] {
-  const templates: Array<{
-    difficulty: DrillDifficulty;
-    title: string;
-    description: string;
-  }> = [
-    {
-      difficulty: "Beginner",
-      title: `Walk-Through Reps: ${feedback}`,
-      description: `Start at about half pace with no pressure at all. Isolate the exact movement behind "${feedback}" and repeat it slowly enough to focus purely on technique. 3 sets of 8 reps, resetting your starting position each rep. The goal isn't speed — it's grooving the correct pattern so it becomes automatic before you add pressure.`,
-    },
-    {
-      difficulty: "Intermediate",
-      title: `Pressure Reps: ${positionFocus(position)}`,
-      description: `Add a passive defender, a rebound wall, or a partner feeding you balls, and work at about 75% pace. 4 sets of 6 reps, keeping the technique from the walk-through stage while a second variable (a body, a bounce, a pass) forces you to adjust. This bridges the gap between "I can do it alone" and "I can do it in a game."`,
-    },
-    {
-      difficulty: "Advanced",
-      title: `Small-Sided Application: ${position}`,
-      description: `Bring it into a 3v3 or 4v4 small-sided game with a rule that forces you to use the skill — for example, a goal only counts if it comes off the technique you're working on. Play 4 rounds of 4 minutes with 1 minute of rest between rounds. This trains you to recognize the moment to use the skill without having to think about it.`,
-    },
-    {
-      difficulty: "Elite",
-      title: `Match-Speed Pressure: ${feedback}`,
-      description: `Run this at full match intensity with live opposition and a shot clock, ideally once you're already a little fatigued (e.g. after a conditioning block). 5 sets of 90 seconds at game speed, with a coach or teammate calling out random cues to simulate real decision-making. This is where the habit gets tested under the exact conditions it needs to hold up in — a real match.`,
-    },
-  ];
-
-  return templates.map((template, index) => ({
-    id: crypto.randomUUID(),
-    difficulty: template.difficulty,
-    title: template.title,
-    description: template.description,
-    imageUrl: pickImage(index),
-    videoUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(
-      `${position} ${template.title} soccer drill`,
-    )}`,
-    kept: false,
-  }));
+interface GeneratedDrill {
+  difficulty: DrillDifficulty;
+  title: string;
+  description: string;
 }
 
-export function breakdownFeedback(
+export async function breakdownFeedback(
   feedback: string,
   position: string,
-): FeedbackBreakdown {
-  const focus = positionFocus(position);
-  const drills = buildDrills(feedback, position);
+): Promise<FeedbackBreakdown> {
+  const response = await fetch("/api/drill-feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ feedback, position }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to generate drill feedback");
+  }
+
+  const data: { intro: string; outro: string; drills: GeneratedDrill[] } =
+    await response.json();
 
   return {
-    intro: `Here's a breakdown of that feedback for a ${position}:\n\n"${feedback}" usually points to a gap in ${focus}. Small technical habits like this get exposed under match speed and pressure — especially in the moments that decide games. Here are ${drills.length} drills to fix it, ordered from easiest to hardest so you can build up:`,
-    drills,
-    outro:
-      "Hit the check to keep a drill or the ✕ to drop it — keep whichever fit your training time. Let me know if you want to go deeper on any of them, or share more feedback to break down.",
+    intro: data.intro,
+    outro: data.outro,
+    drills: data.drills.map((drill, index) => ({
+      id: crypto.randomUUID(),
+      difficulty: drill.difficulty,
+      title: drill.title,
+      description: drill.description,
+      imageUrl: pickImage(index),
+      videoUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(
+        `${position} ${drill.title} soccer drill`,
+      )}`,
+      kept: false,
+    })),
   };
 }
 

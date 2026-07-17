@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { answerHelpQuestion, HELP_WELCOME } from "~/lib/help-assistant";
+import { HELP_WELCOME } from "~/lib/help-assistant";
 import { cn } from "~/lib/utils";
 
 interface HelpMessage {
@@ -18,23 +18,53 @@ export function HelpWidget() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<HelpMessage[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
 
-  function sendMessage() {
+  async function sendMessage() {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    if (!trimmed || sending) return;
 
     const userMessage: HelpMessage = {
       id: crypto.randomUUID(),
       role: "user",
       content: trimmed,
     };
-    const assistantMessage: HelpMessage = {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content: answerHelpQuestion(trimmed),
-    };
-    setMessages((prev) => [...prev, userMessage, assistantMessage]);
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
     setInput("");
+    setSending(true);
+
+    try {
+      const response = await fetch("/api/help", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: nextMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
+      if (!response.ok) throw new Error("Help request failed");
+      const data: { answer: string } = await response.json();
+      setMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: "assistant", content: data.answer },
+      ]);
+    } catch (error) {
+      console.error(error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content:
+            "Sorry, I couldn't reach the help assistant just now. Please try again.",
+        },
+      ]);
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -86,13 +116,15 @@ export function HelpWidget() {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask a question..."
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              disabled={sending}
+              placeholder={sending ? "Thinking..." : "Ask a question..."}
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
             />
             <button
               type="submit"
               aria-label="Send"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition-transform hover:scale-105"
+              disabled={sending}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
             >
               →
             </button>

@@ -6,7 +6,7 @@ async function main() {
   await import("./src/env");
 
   const result = streamText({
-    model: "openai/gpt-5.4",
+    model: "openai/gpt-4o-mini",
     prompt: "Say hello in one short sentence.",
   });
 
