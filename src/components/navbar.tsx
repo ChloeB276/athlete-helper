@@ -20,15 +20,22 @@ export function Navbar({
     : { href: "/demo", label: "Demo" };
 
   return (
-    <nav className="border-b border-border bg-background">
-      <div className="mx-auto flex h-14 max-w-3xl items-center gap-6 px-4">
-        <Link href="/" className="font-semibold tracking-tight">
-          Athlete Helper
+    <div className="sticky top-4 z-40 mx-auto w-full max-w-3xl px-4">
+      <nav className="flex h-14 items-center gap-3 rounded-full border border-border/60 bg-card/90 px-4 shadow-soft backdrop-blur-sm sm:gap-6 sm:px-5">
+        <Link
+          href="/"
+          className="flex shrink-0 items-center gap-2 font-semibold tracking-tight whitespace-nowrap"
+        >
+          <span
+            aria-hidden="true"
+            className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-gradient-to-br from-accent-a to-accent-b"
+          />
+          <span className="hidden sm:inline">Athlete Helper</span>
         </Link>
         <Link
           href={link.href}
           className={cn(
-            "text-sm transition-colors hover:text-foreground",
+            "shrink-0 text-sm whitespace-nowrap transition-colors hover:text-foreground",
             pathname === link.href
               ? "text-foreground"
               : "text-muted-foreground",
@@ -40,7 +47,7 @@ export function Navbar({
           <Link
             href="/admin"
             className={cn(
-              "text-sm transition-colors hover:text-foreground",
+              "shrink-0 text-sm whitespace-nowrap transition-colors hover:text-foreground",
               pathname === "/admin"
                 ? "text-foreground"
                 : "text-muted-foreground",
@@ -49,12 +56,12 @@ export function Navbar({
             Admin
           </Link>
         )}
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
           {user ? (
             <form action={signOut}>
               <button
                 type="submit"
-                className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                className="rounded-full border border-border px-3 py-1.5 text-sm font-medium whitespace-nowrap text-foreground transition-colors hover:bg-accent"
               >
                 Sign Out
               </button>
@@ -63,20 +70,20 @@ export function Navbar({
             <>
               <Link
                 href="/login"
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className="hidden text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground sm:inline"
               >
                 Sign In
               </Link>
               <Link
                 href="/signup"
-                className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                className="rounded-full bg-brand px-3 py-1.5 text-sm font-medium whitespace-nowrap text-brand-foreground transition-transform hover:scale-105"
               >
                 Sign Up
               </Link>
             </>
           )}
         </div>
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }
