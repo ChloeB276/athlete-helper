@@ -36,11 +36,13 @@ export default function DemoPage() {
   const [position, setPosition] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [showVisuals, setShowVisuals] = useState(false);
+  const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  function sendMessage() {
+  async function sendMessage() {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    if (!trimmed || sending) return;
+    setInput("");
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -48,16 +50,22 @@ export default function DemoPage() {
       content: trimmed,
     };
 
-    let assistantMessage: Message;
     if (!position) {
       setPosition(trimmed);
-      assistantMessage = {
+      const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
         content: acknowledgePosition(trimmed),
       };
-    } else {
-      const breakdown = breakdownFeedback(trimmed, position);
+      setMessages((prev) => [...prev, userMessage, assistantMessage]);
+      return;
+    }
+
+    setMessages((prev) => [...prev, userMessage]);
+    setSending(true);
+    let assistantMessage: Message;
+    try {
+      const breakdown = await breakdownFeedback(trimmed, position);
       assistantMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -65,10 +73,18 @@ export default function DemoPage() {
         drills: breakdown.drills,
         outro: breakdown.outro,
       };
+    } catch (error) {
+      console.error(error);
+      assistantMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content:
+          "Sorry, I couldn't generate drills for that just now. Please try again.",
+      };
+    } finally {
+      setSending(false);
     }
-
-    setMessages((prev) => [...prev, userMessage, assistantMessage]);
-    setInput("");
+    setMessages((prev) => [...prev, assistantMessage]);
   }
 
   function toggleKeepDrill(messageId: string, drillId: string) {
@@ -163,13 +179,18 @@ export default function DemoPage() {
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              disabled={sending}
               placeholder={
-                position
-                  ? "Describe some feedback..."
-                  : "e.g. center back, winger, goalkeeper..."
+                sending
+                  ? "Thinking..."
+                  : position
+                    ? "Describe some feedback..."
+                    : "e.g. center back, winger, goalkeeper..."
               }
             />
-            <Button type="submit">Send</Button>
+            <Button type="submit" disabled={sending}>
+              Send
+            </Button>
           </form>
         </CardContent>
       </Card>

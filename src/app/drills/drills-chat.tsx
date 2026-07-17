@@ -43,6 +43,7 @@ export function DrillsChat() {
   const [draftName, setDraftName] = useState("");
   const [input, setInput] = useState("");
   const [showVisuals, setShowVisuals] = useState(false);
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
@@ -142,8 +143,8 @@ export function DrillsChat() {
     deleteFolderRecord(id).catch((error) => console.error(error));
   }
 
-  function sendMessage() {
-    if (!selected) return;
+  async function sendMessage() {
+    if (!selected || sending) return;
     const trimmed = input.trim();
     if (!trimmed) return;
 
@@ -152,18 +153,53 @@ export function DrillsChat() {
       role: "user",
       content: trimmed,
     };
+    setInput("");
 
-    let assistantMessage: ChatMessage;
-    let nextPosition = selected.position;
     if (!selected.position) {
-      nextPosition = trimmed;
-      assistantMessage = {
+      const nextPosition = trimmed;
+      const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
         content: acknowledgePosition(trimmed),
       };
-    } else {
-      const breakdown = breakdownFeedback(trimmed, selected.position);
+      const updatedAt = Date.now();
+
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === selected.id
+            ? {
+                ...c,
+                position: nextPosition,
+                messages: [...c.messages, userMessage, assistantMessage],
+                updatedAt,
+              }
+            : c,
+        ),
+      );
+
+      appendMessagesRecord({
+        chatId: selected.id,
+        userMessage,
+        assistantMessage,
+        position: nextPosition,
+        title: selected.title,
+        updatedAt,
+      }).catch((error) => console.error(error));
+      return;
+    }
+
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === selected.id
+          ? { ...c, messages: [...c.messages, userMessage] }
+          : c,
+      ),
+    );
+
+    setSending(true);
+    let assistantMessage: ChatMessage;
+    try {
+      const breakdown = await breakdownFeedback(trimmed, selected.position);
       assistantMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -171,10 +207,19 @@ export function DrillsChat() {
         drills: breakdown.drills,
         outro: breakdown.outro,
       };
+    } catch (error) {
+      console.error(error);
+      assistantMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content:
+          "Sorry, I couldn't generate drills for that just now. Please try again.",
+      };
+    } finally {
+      setSending(false);
     }
 
-    const shouldAutoTitle =
-      selected.title === DEFAULT_TITLE && selected.position;
+    const shouldAutoTitle = selected.title === DEFAULT_TITLE;
     const nextTitle = shouldAutoTitle ? trimmed.slice(0, 40) : selected.title;
     const updatedAt = Date.now();
 
@@ -183,21 +228,19 @@ export function DrillsChat() {
         c.id === selected.id
           ? {
               ...c,
-              position: nextPosition,
               title: nextTitle,
-              messages: [...c.messages, userMessage, assistantMessage],
+              messages: [...c.messages, assistantMessage],
               updatedAt,
             }
           : c,
       ),
     );
-    setInput("");
 
     appendMessagesRecord({
       chatId: selected.id,
       userMessage,
       assistantMessage,
-      position: nextPosition,
+      position: selected.position,
       title: nextTitle,
       updatedAt,
     }).catch((error) => console.error(error));
@@ -468,17 +511,21 @@ export function DrillsChat() {
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
+                  disabled={sending}
                   placeholder={
-                    selected.position
-                      ? "Describe some feedback..."
-                      : "e.g. center back, winger, goalkeeper..."
+                    sending
+                      ? "Thinking..."
+                      : selected.position
+                        ? "Describe some feedback..."
+                        : "e.g. center back, winger, goalkeeper..."
                   }
-                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
                 />
                 <button
                   type="submit"
                   aria-label="Send"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition-transform hover:scale-105"
+                  disabled={sending}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
                 >
                   →
                 </button>
