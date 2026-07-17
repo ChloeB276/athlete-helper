@@ -11,6 +11,7 @@ minimumReleaseAgeExclude:
   - next@16.2.10
 
 allowBuilds:
+  esbuild: true
   sharp: false
   supabase: true
   unrs-resolver: false
