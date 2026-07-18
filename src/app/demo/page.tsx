@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { DrillCard } from "~/components/drill-card";
 import { QnaHint } from "~/components/qna-hint";
+import { TrainingContextForm } from "~/components/training-context-form";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -10,8 +11,11 @@ import { VisualsToggle } from "~/components/visuals-toggle";
 import {
   ASK_POSITION_PROMPT,
   acknowledgePosition,
+  acknowledgeTrainingContext,
   breakdownFeedback,
   type Drill,
+  describeTrainingContext,
+  type TrainingContext,
 } from "~/lib/soccer-feedback";
 import { cn } from "~/lib/utils";
 
@@ -34,10 +38,27 @@ const INITIAL_MESSAGES: Message[] = [
 export default function DemoPage() {
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [position, setPosition] = useState<string | null>(null);
+  const [trainingContext, setTrainingContext] =
+    useState<TrainingContext | null>(null);
   const [input, setInput] = useState("");
   const [showVisuals, setShowVisuals] = useState(false);
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function submitTrainingContext(context: TrainingContext) {
+    setTrainingContext(context);
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: describeTrainingContext(context),
+    };
+    const assistantMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: acknowledgeTrainingContext(),
+    };
+    setMessages((prev) => [...prev, userMessage, assistantMessage]);
+  }
 
   async function sendMessage() {
     const trimmed = input.trim();
@@ -61,11 +82,17 @@ export default function DemoPage() {
       return;
     }
 
+    if (!trainingContext) return;
+
     setMessages((prev) => [...prev, userMessage]);
     setSending(true);
     let assistantMessage: Message;
     try {
-      const breakdown = await breakdownFeedback(trimmed, position);
+      const breakdown = await breakdownFeedback(
+        trimmed,
+        position,
+        trainingContext,
+      );
       assistantMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -79,7 +106,9 @@ export default function DemoPage() {
         id: crypto.randomUUID(),
         role: "assistant",
         content:
-          "Sorry, I couldn't generate drills for that just now. Please try again.",
+          error instanceof Error
+            ? error.message
+            : "Sorry, I couldn't generate drills for that just now. Please try again.",
       };
     } finally {
       setSending(false);
@@ -168,30 +197,34 @@ export default function DemoPage() {
             ))}
           </div>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              sendMessage();
-            }}
-            className="flex gap-2"
-          >
-            <Input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={sending}
-              placeholder={
-                sending
-                  ? "Thinking..."
-                  : position
-                    ? "Describe some feedback..."
-                    : "e.g. center back, winger, goalkeeper..."
-              }
-            />
-            <Button type="submit" disabled={sending}>
-              Send
-            </Button>
-          </form>
+          {position && !trainingContext ? (
+            <TrainingContextForm onSubmit={submitTrainingContext} />
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendMessage();
+              }}
+              className="flex gap-2"
+            >
+              <Input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                disabled={sending}
+                placeholder={
+                  sending
+                    ? "Searching for real drills..."
+                    : position
+                      ? "Describe some feedback..."
+                      : "e.g. center back, winger, goalkeeper..."
+                }
+              />
+              <Button type="submit" disabled={sending}>
+                Send
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -20,13 +20,28 @@ export type DrillDifficulty =
   | "Advanced"
   | "Elite";
 
+export type Equipment = "goal" | "cones" | "wall";
+
+export const EQUIPMENT_OPTIONS: Array<{ value: Equipment; label: string }> = [
+  { value: "goal", label: "Goal" },
+  { value: "cones", label: "Cones" },
+  { value: "wall", label: "Wall" },
+];
+
+export interface TrainingContext {
+  /** Number of other players training alongside the user. 0 means solo. */
+  partners: number;
+  equipment: Equipment[];
+}
+
 export interface Drill {
   id: string;
   difficulty: DrillDifficulty;
   title: string;
   description: string;
-  imageUrl: string;
-  videoUrl: string;
+  sourceTitle: string | null;
+  imageUrl: string | null;
+  videoUrl: string | null;
   kept: boolean;
 }
 
@@ -36,35 +51,31 @@ export interface FeedbackBreakdown {
   outro: string;
 }
 
-const DRILL_IMAGES = [
-  "https://images.unsplash.com/photo-1606925797300-0b35e9d1794e",
-  "https://images.unsplash.com/photo-1574772135913-d519461c3996",
-  "https://images.unsplash.com/photo-1626248801379-51a0748a5f96",
-  "https://images.unsplash.com/photo-1624280157150-4d1ed8632989",
-];
-
-function pickImage(index: number): string {
-  return DRILL_IMAGES[index % DRILL_IMAGES.length] ?? DRILL_IMAGES[0] ?? "";
-}
-
 interface GeneratedDrill {
   difficulty: DrillDifficulty;
   title: string;
   description: string;
+  sourceTitle: string | null;
+  imageUrl: string | null;
+  videoUrl: string | null;
 }
 
 export async function breakdownFeedback(
   feedback: string,
   position: string,
+  trainingContext: TrainingContext,
 ): Promise<FeedbackBreakdown> {
   const response = await fetch("/api/drill-feedback", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ feedback, position }),
+    body: JSON.stringify({ feedback, position, trainingContext }),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to generate drill feedback");
+    const body = (await response.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    throw new Error(body?.error ?? "Failed to generate drill feedback");
   }
 
   const data: { intro: string; outro: string; drills: GeneratedDrill[] } =
@@ -73,15 +84,14 @@ export async function breakdownFeedback(
   return {
     intro: data.intro,
     outro: data.outro,
-    drills: data.drills.map((drill, index) => ({
+    drills: data.drills.map((drill) => ({
       id: crypto.randomUUID(),
       difficulty: drill.difficulty,
       title: drill.title,
       description: drill.description,
-      imageUrl: pickImage(index),
-      videoUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(
-        `${position} ${drill.title} soccer drill`,
-      )}`,
+      sourceTitle: drill.sourceTitle,
+      imageUrl: drill.imageUrl,
+      videoUrl: drill.videoUrl,
       kept: false,
     })),
   };
@@ -91,9 +101,31 @@ export const ASK_POSITION_PROMPT =
   "Hi! I'm your Athlete Helper AI coach for soccer players. What position do you play?";
 
 export function acknowledgePosition(position: string): string {
-  return `Got it, you play ${position}. Now tell me some feedback your coach gave you, and I'll break it down into a detailed drill plan.`;
+  return `Got it, you play ${position}. Before we get into drills, let's set up your training session.`;
 }
 
 export function greetingForPosition(position: string): string {
   return `Hi! I'm your Athlete Helper AI coach for soccer players. Tell me some feedback your coach gave you as a ${position}, and I'll break it down into a detailed drill plan.`;
+}
+
+export function describeTrainingContext(context: TrainingContext): string {
+  const groupPart =
+    context.partners > 0
+      ? `Training with ${context.partners} friend${context.partners === 1 ? "" : "s"}`
+      : "Training solo";
+  const equipmentPart =
+    context.equipment.length > 0
+      ? context.equipment
+          .map(
+            (item) =>
+              EQUIPMENT_OPTIONS.find((option) => option.value === item)
+                ?.label ?? item,
+          )
+          .join(", ")
+      : "No equipment";
+  return `${groupPart} • ${equipmentPart}`;
+}
+
+export function acknowledgeTrainingContext(): string {
+  return "Got it. Now tell me some feedback your coach gave you, and I'll find real drills to fix it.";
 }

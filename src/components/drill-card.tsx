@@ -55,12 +55,12 @@ export function DrillCard({
       <p className="text-sm leading-relaxed text-muted-foreground">
         {drill.description}
       </p>
-      {showVisuals && (
+      {showVisuals && drill.imageUrl && drill.videoUrl && (
         <div className="mt-1 flex items-center gap-3">
           <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg">
             <Image
               src={drill.imageUrl}
-              alt={drill.title}
+              alt={drill.sourceTitle ?? drill.title}
               fill
               className="object-cover"
               sizes="96px"
@@ -72,7 +72,7 @@ export function DrillCard({
             rel="noopener noreferrer"
             className="text-xs font-semibold text-brand hover:underline"
           >
-            ▶ Watch a video example
+            ▶ {drill.sourceTitle ?? "Watch the source video"}
           </a>
         </div>
       )}
