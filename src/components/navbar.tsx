@@ -9,15 +9,22 @@ import { cn } from "~/lib/utils";
 export function Navbar({
   user,
   isAdmin,
+  role,
 }: {
   user: User | null;
   isAdmin: boolean;
+  role: "coach" | "player" | null;
 }) {
   const pathname = usePathname();
 
-  const link = user
-    ? { href: "/drills", label: "Drills" }
-    : { href: "/demo", label: "Demo" };
+  const links = user
+    ? role === "coach"
+      ? [{ href: "/coach/teams", label: "Teams" }]
+      : [
+          { href: "/drills", label: "Drills" },
+          { href: "/feedback", label: "Feedback" },
+        ]
+    : [{ href: "/demo", label: "Demo" }];
 
   return (
     <div className="sticky top-4 z-40 mx-auto w-full max-w-3xl px-4">
@@ -32,17 +39,20 @@ export function Navbar({
           />
           <span className="hidden sm:inline">Athlete Helper</span>
         </Link>
-        <Link
-          href={link.href}
-          className={cn(
-            "shrink-0 text-sm whitespace-nowrap transition-colors hover:text-foreground",
-            pathname === link.href
-              ? "text-foreground"
-              : "text-muted-foreground",
-          )}
-        >
-          {link.label}
-        </Link>
+        {links.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={cn(
+              "shrink-0 text-sm whitespace-nowrap transition-colors hover:text-foreground",
+              pathname === link.href
+                ? "text-foreground"
+                : "text-muted-foreground",
+            )}
+          >
+            {link.label}
+          </Link>
+        ))}
         {isAdmin && (
           <Link
             href="/admin"

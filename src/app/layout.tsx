@@ -23,20 +23,22 @@ export default async function RootLayout({
   } = await supabase.auth.getUser();
 
   let isAdmin = false;
+  let role: "coach" | "player" | null = null;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_admin")
+      .select("is_admin, role")
       .eq("id", user.id)
       .single();
     isAdmin = profile?.is_admin ?? false;
+    role = profile?.role ?? null;
   }
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider>
-          <Navbar user={user} isAdmin={isAdmin} />
+          <Navbar user={user} isAdmin={isAdmin} role={role} />
           {children}
         </ThemeProvider>
       </body>
