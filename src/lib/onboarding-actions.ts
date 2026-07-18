@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { FEET, type Foot, ROLES, type Role } from "~/lib/onboarding";
 import { createClient } from "~/lib/supabase/server";
@@ -50,6 +51,7 @@ export async function selectRole(
     return { error: error.message };
   }
 
+  revalidatePath("/", "layout");
   redirect("/onboarding");
 }
 
@@ -90,5 +92,6 @@ export async function completeOnboarding(
     return { error: error.message };
   }
 
+  revalidatePath("/", "layout");
   redirect("/");
 }
