@@ -1,10 +1,25 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { InviteForm } from "~/components/invite-form";
-import { addAttendanceDate, setAttendance } from "~/lib/attendance-actions";
+import {
+  addAttendanceDate,
+  addAttendanceDateRange,
+  bulkSetAttendance,
+  setAttendance,
+} from "~/lib/attendance-actions";
 import { createClient } from "~/lib/supabase/server";
 import { removeFromRoster } from "~/lib/team-actions";
 import { cn } from "~/lib/utils";
+
+const WEEKDAY_OPTIONS = [
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+  { value: 0, label: "Sun" },
+];
 
 function formatDate(date: string) {
   const [, month, day] = date.split("-");
@@ -135,6 +150,71 @@ export default async function CoachTeamPage({
           )}
         </div>
 
+        {roster && roster.length > 0 && (
+          <form
+            action={addAttendanceDateRange.bind(null, team.id)}
+            className="flex flex-wrap items-end gap-4 rounded-3xl bg-card p-4 shadow-soft"
+          >
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="startDate"
+                className="text-xs text-muted-foreground"
+              >
+                Start date
+              </label>
+              <input
+                id="startDate"
+                name="startDate"
+                type="date"
+                required
+                className="rounded-lg border border-border bg-background px-2 py-1 text-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="endDate"
+                className="text-xs text-muted-foreground"
+              >
+                End date
+              </label>
+              <input
+                id="endDate"
+                name="endDate"
+                type="date"
+                required
+                className="rounded-lg border border-border bg-background px-2 py-1 text-sm"
+              />
+            </div>
+            <fieldset className="flex flex-col gap-1">
+              <legend className="text-xs text-muted-foreground">
+                Repeat on (optional)
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {WEEKDAY_OPTIONS.map((day) => (
+                  <label
+                    key={day.value}
+                    className="flex items-center gap-1 text-xs text-muted-foreground"
+                  >
+                    <input
+                      type="checkbox"
+                      name="weekday"
+                      value={day.value}
+                      className="h-3.5 w-3.5 accent-brand"
+                    />
+                    {day.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <button
+              type="submit"
+              className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition-transform hover:scale-105"
+            >
+              Add dates
+            </button>
+          </form>
+        )}
+
         {!roster || roster.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-3xl bg-card p-12 text-center shadow-soft">
             <p className="text-muted-foreground">
@@ -175,8 +255,49 @@ export default async function CoachTeamPage({
                       key={member.player_id}
                       className="border-t border-border/60"
                     >
-                      <td className="sticky left-0 max-w-[10rem] truncate bg-card px-3 py-3 text-left">
-                        {email}
+                      <td className="sticky left-0 max-w-[10rem] bg-card px-3 py-3 text-left">
+                        <div className="flex flex-col gap-1">
+                          <span className="truncate">{email}</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground">
+                              Set all:
+                            </span>
+                            <form
+                              action={bulkSetAttendance.bind(
+                                null,
+                                team.id,
+                                member.player_id,
+                                dates,
+                                true,
+                              )}
+                            >
+                              <button
+                                type="submit"
+                                aria-label="Mark present for all dates"
+                                className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-brand hover:text-brand-foreground"
+                              >
+                                ✓
+                              </button>
+                            </form>
+                            <form
+                              action={bulkSetAttendance.bind(
+                                null,
+                                team.id,
+                                member.player_id,
+                                dates,
+                                false,
+                              )}
+                            >
+                              <button
+                                type="submit"
+                                aria-label="Mark absent for all dates"
+                                className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-destructive hover:text-white"
+                              >
+                                ✕
+                              </button>
+                            </form>
+                          </div>
+                        </div>
                       </td>
                       {dates.map((date) => {
                         const present = attendanceMap.get(
