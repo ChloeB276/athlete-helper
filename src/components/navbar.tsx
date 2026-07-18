@@ -22,7 +22,7 @@ export function Navbar({
       ? [{ href: "/coach/teams", label: "Teams" }]
       : [
           { href: "/drills", label: "Drills" },
-          { href: "/feedback", label: "Feedback" },
+          { href: "/teams", label: "Teams" },
         ]
     : [{ href: "/demo", label: "Demo" }];
 

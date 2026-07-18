@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  FeedbackCard,
+  type FeedbackCardItem,
+} from "~/components/feedback-card";
 import { FeedbackForm } from "~/components/feedback-form";
 import { createClient } from "~/lib/supabase/server";
 
@@ -43,8 +47,26 @@ export default async function NewFeedbackPage({
   const email =
     (member.profiles as unknown as { email: string } | null)?.email ?? "";
 
+  const { data: pastFeedback } = await supabase
+    .from("feedback")
+    .select(
+      "id, coach_text, ai_expanded_text, ai_next_steps, ai_drills, created_at",
+    )
+    .eq("team_id", teamId)
+    .eq("player_id", playerId)
+    .order("created_at", { ascending: false });
+
+  const history: FeedbackCardItem[] = (pastFeedback ?? []).map((row) => ({
+    id: row.id,
+    coachText: row.coach_text,
+    aiExpandedText: row.ai_expanded_text,
+    aiNextSteps: row.ai_next_steps,
+    aiDrills: row.ai_drills as FeedbackCardItem["aiDrills"],
+    createdAt: row.created_at,
+  }));
+
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-12">
+    <div className="mx-auto flex max-w-2xl flex-col gap-8 px-6 py-12">
       <div className="flex flex-col gap-2">
         <Link
           href={`/coach/teams/${team.id}`}
@@ -57,9 +79,18 @@ export default async function NewFeedbackPage({
         </h1>
       </div>
 
-      <div className="rounded-3xl bg-card p-6 shadow-soft sm:p-8">
+      <div className="mx-auto w-full max-w-md rounded-3xl bg-card p-6 shadow-soft sm:p-8">
         <FeedbackForm teamId={team.id} playerId={playerId} />
       </div>
+
+      {history.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold tracking-tight">History</h2>
+          {history.map((item) => (
+            <FeedbackCard key={item.id} item={item} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

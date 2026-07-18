@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { InviteForm } from "~/components/invite-form";
+import { addAttendanceDate, setAttendance } from "~/lib/attendance-actions";
 import { createClient } from "~/lib/supabase/server";
 import { removeFromRoster } from "~/lib/team-actions";
+import { cn } from "~/lib/utils";
+
+function formatDate(date: string) {
+  const [, month, day] = date.split("-");
+  return `${Number(month)}/${Number(day)}`;
+}
 
 export default async function CoachTeamPage({
   params,
@@ -35,6 +42,20 @@ export default async function CoachTeamPage({
     .select("player_id, joined_at, profiles(email)")
     .eq("team_id", teamId)
     .order("joined_at", { ascending: true });
+
+  const { data: attendanceRows } = await supabase
+    .from("attendance")
+    .select("date, player_id, present")
+    .eq("team_id", teamId)
+    .order("date", { ascending: true });
+
+  const dates = [...new Set((attendanceRows ?? []).map((row) => row.date))];
+  const attendanceMap = new Map(
+    (attendanceRows ?? []).map((row) => [
+      `${row.date}|${row.player_id}`,
+      row.present,
+    ]),
+  );
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
@@ -95,6 +116,128 @@ export default async function CoachTeamPage({
             <p className="text-muted-foreground">
               No players on this roster yet. Invite one above.
             </p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold tracking-tight">Attendance</h2>
+          {roster && roster.length > 0 && (
+            <form action={addAttendanceDate.bind(null, team.id)}>
+              <button
+                type="submit"
+                className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition-transform hover:scale-105"
+              >
+                + Add Today
+              </button>
+            </form>
+          )}
+        </div>
+
+        {!roster || roster.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 rounded-3xl bg-card p-12 text-center shadow-soft">
+            <p className="text-muted-foreground">
+              Invite players first to take attendance.
+            </p>
+          </div>
+        ) : dates.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 rounded-3xl bg-card p-12 text-center shadow-soft">
+            <p className="text-muted-foreground">
+              No attendance taken yet. Click "+ Add Today" to start.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-3xl bg-card p-4 shadow-soft">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr>
+                  <th className="sticky left-0 bg-card px-3 py-2 text-left font-medium text-muted-foreground">
+                    Player
+                  </th>
+                  {dates.map((date) => (
+                    <th
+                      key={date}
+                      className="px-2 py-2 text-center font-medium whitespace-nowrap text-muted-foreground"
+                    >
+                      {formatDate(date)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {roster.map((member) => {
+                  const email =
+                    (member.profiles as unknown as { email: string } | null)
+                      ?.email ?? "Unknown";
+                  return (
+                    <tr
+                      key={member.player_id}
+                      className="border-t border-border/60"
+                    >
+                      <td className="sticky left-0 max-w-[10rem] truncate bg-card px-3 py-3 text-left">
+                        {email}
+                      </td>
+                      {dates.map((date) => {
+                        const present = attendanceMap.get(
+                          `${date}|${member.player_id}`,
+                        );
+                        return (
+                          <td key={date} className="px-2 py-3">
+                            <div className="flex items-center justify-center gap-1">
+                              <form
+                                action={setAttendance.bind(
+                                  null,
+                                  team.id,
+                                  member.player_id,
+                                  date,
+                                  true,
+                                )}
+                              >
+                                <button
+                                  type="submit"
+                                  aria-label="Mark present"
+                                  className={cn(
+                                    "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-colors",
+                                    present === true
+                                      ? "bg-brand text-brand-foreground"
+                                      : "bg-muted text-muted-foreground hover:bg-accent",
+                                  )}
+                                >
+                                  ✓
+                                </button>
+                              </form>
+                              <form
+                                action={setAttendance.bind(
+                                  null,
+                                  team.id,
+                                  member.player_id,
+                                  date,
+                                  false,
+                                )}
+                              >
+                                <button
+                                  type="submit"
+                                  aria-label="Mark absent"
+                                  className={cn(
+                                    "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-colors",
+                                    present === false
+                                      ? "bg-destructive text-white"
+                                      : "bg-muted text-muted-foreground hover:bg-accent",
+                                  )}
+                                >
+                                  ✕
+                                </button>
+                              </form>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
