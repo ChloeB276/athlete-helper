@@ -106,7 +106,9 @@ export default function DemoPage() {
         id: crypto.randomUUID(),
         role: "assistant",
         content:
-          "Sorry, I couldn't generate drills for that just now. Please try again.",
+          error instanceof Error
+            ? error.message
+            : "Sorry, I couldn't generate drills for that just now. Please try again.",
       };
     } finally {
       setSending(false);

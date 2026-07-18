@@ -1,5 +1,9 @@
 import { generateText, type ModelMessage } from "ai";
 import { chatModel } from "~/lib/ai";
+import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
+import { createClient } from "~/lib/supabase/server";
+
+const ANONYMOUS_RATE_LIMIT = { windowSeconds: 60 * 60, maxRequests: 10 };
 
 const SYSTEM_PROMPT = `You are the in-app help assistant for Athlete Helper, a soccer training app. Only answer using these facts:
 - Drills: on the Drills page, start a new chat, tell it your position, then share feedback from your coach — it breaks the feedback into a set of drills.
@@ -17,6 +21,27 @@ export async function POST(request: Request) {
 
   if (!messages?.length) {
     return Response.json({ error: "messages are required" }, { status: 400 });
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    const allowed = await checkRateLimit(
+      `help:${getClientIp(request)}`,
+      ANONYMOUS_RATE_LIMIT,
+    );
+    if (!allowed) {
+      return Response.json(
+        {
+          error:
+            "You've hit the demo's hourly limit. Sign up for unlimited access.",
+        },
+        { status: 429 },
+      );
+    }
   }
 
   try {

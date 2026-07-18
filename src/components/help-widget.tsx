@@ -45,11 +45,15 @@ export function HelpWidget() {
           })),
         }),
       });
-      if (!response.ok) throw new Error("Help request failed");
-      const data: { answer: string } = await response.json();
+      const data: { answer?: string; error?: string } = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Help request failed");
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: "assistant", content: data.answer },
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: data.answer ?? "",
+        },
       ]);
     } catch (error) {
       console.error(error);
@@ -59,7 +63,9 @@ export function HelpWidget() {
           id: crypto.randomUUID(),
           role: "assistant",
           content:
-            "Sorry, I couldn't reach the help assistant just now. Please try again.",
+            error instanceof Error
+              ? error.message
+              : "Sorry, I couldn't reach the help assistant just now. Please try again.",
         },
       ]);
     } finally {

@@ -1,7 +1,11 @@
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import { chatModel, gateway } from "~/lib/ai";
+import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
 import { positionFocus } from "~/lib/soccer-feedback";
+import { createClient } from "~/lib/supabase/server";
+
+const ANONYMOUS_RATE_LIMIT = { windowSeconds: 60 * 60, maxRequests: 3 };
 
 const DRILL_DIFFICULTIES = [
   "Beginner",
@@ -101,6 +105,27 @@ export async function POST(request: Request) {
       { error: "feedback, position, and trainingContext are required" },
       { status: 400 },
     );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    const allowed = await checkRateLimit(
+      `drill-feedback:${getClientIp(request)}`,
+      ANONYMOUS_RATE_LIMIT,
+    );
+    if (!allowed) {
+      return Response.json(
+        {
+          error:
+            "You've hit the demo's hourly limit. Sign up for unlimited access.",
+        },
+        { status: 429 },
+      );
+    }
   }
 
   try {

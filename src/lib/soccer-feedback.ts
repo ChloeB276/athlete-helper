@@ -72,7 +72,10 @@ export async function breakdownFeedback(
   });
 
   if (!response.ok) {
-    throw new Error("Failed to generate drill feedback");
+    const body = (await response.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    throw new Error(body?.error ?? "Failed to generate drill feedback");
   }
 
   const data: { intro: string; outro: string; drills: GeneratedDrill[] } =
