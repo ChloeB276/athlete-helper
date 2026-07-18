@@ -2,7 +2,7 @@ import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import { chatModel, gateway } from "~/lib/ai";
 import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
-import { positionFocus } from "~/lib/soccer-feedback";
+import { EQUIPMENT_OPTIONS, positionFocus } from "~/lib/soccer-feedback";
 import { createClient } from "~/lib/supabase/server";
 
 const ANONYMOUS_RATE_LIMIT = { windowSeconds: 60 * 60, maxRequests: 3 };
@@ -27,6 +27,12 @@ interface VideoResult {
   highlights?: string[];
 }
 
+function excludedEquipment(context: TrainingContext): string[] {
+  return EQUIPMENT_OPTIONS.map((option) => option.value).filter(
+    (value) => !context.equipment.includes(value),
+  );
+}
+
 function describeTrainingContext(context: TrainingContext): string {
   const group =
     context.partners > 0
@@ -36,7 +42,18 @@ function describeTrainingContext(context: TrainingContext): string {
     context.equipment.length > 0
       ? `available equipment: ${context.equipment.join(", ")}`
       : "no equipment available";
-  return `${group}, ${equipment}`;
+  const excluded = excludedEquipment(context);
+  const constraint =
+    excluded.length > 0
+      ? ` The player does NOT have access to ${excluded.join(" or ")} — never select or describe a drill that requires ${excluded.length === 1 ? "it" : "them"}.`
+      : "";
+  return `${group}, ${equipment}.${constraint}`;
+}
+
+/** Best-effort filter for videos whose title names equipment the player doesn't have, since the search itself isn't equipment-aware. */
+function matchesEquipment(title: string, excluded: string[]): boolean {
+  const lower = title.toLowerCase();
+  return !excluded.some((item) => lower.includes(item));
 }
 
 async function searchDrillVideos(
@@ -60,7 +77,11 @@ async function searchDrillVideos(
   const output = toolResults?.[0]?.output as
     | { results?: VideoResult[] }
     | undefined;
-  return { difficulty, results: output?.results ?? [] };
+  const excluded = excludedEquipment(trainingContext);
+  const results = (output?.results ?? []).filter((r) =>
+    matchesEquipment(r.title, excluded),
+  );
+  return { difficulty, results };
 }
 
 /** Greedily assign each tier its highest-ranked video that no earlier tier already claimed. */
