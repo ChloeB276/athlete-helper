@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "~/lib/supabase/server";
 
-export default async function MyTeamsPage() {
+export default async function AttendanceTeamsPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -26,9 +26,9 @@ export default async function MyTeamsPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">My Teams</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
         <p className="text-muted-foreground">
-          See your coach's feedback for each team you're on.
+          Pick a team to add or review your attendance.
         </p>
       </div>
 
@@ -37,7 +37,7 @@ export default async function MyTeamsPage() {
           {teams.map((team) => (
             <Link
               key={team.id}
-              href={`/teams/${team.id}`}
+              href={`/attendance/${team.id}`}
               className="flex flex-col gap-1 rounded-3xl bg-card p-6 shadow-soft transition-transform hover:-translate-y-0.5"
             >
               <span className="truncate text-sm font-semibold">

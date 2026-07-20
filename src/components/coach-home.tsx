@@ -1,13 +1,57 @@
 import Link from "next/link";
+import { Badge } from "~/components/ui/badge";
 import { createClient } from "~/lib/supabase/server";
+
+function formatDate(date: string) {
+  const [, month, day] = date.split("-");
+  return `${Number(month)}/${Number(day)}`;
+}
 
 export async function CoachHome({ userId }: { userId: string }) {
   const supabase = await createClient();
-  const { data: teams } = await supabase
-    .from("teams")
-    .select("id, name")
-    .eq("coach_id", userId)
-    .order("created_at", { ascending: false });
+  const [{ data: teams }, { data: attendanceRows }, { data: folders }] =
+    await Promise.all([
+      supabase
+        .from("teams")
+        .select("id, name")
+        .eq("coach_id", userId)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("attendance")
+        .select("date, present, teams!inner(name, coach_id)")
+        .eq("teams.coach_id", userId)
+        .order("date", { ascending: false })
+        .limit(5),
+      supabase
+        .from("folders")
+        .select("id, name, chats(id)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+    ]);
+
+  const recentAttendance = (
+    (attendanceRows ?? []) as unknown as Array<{
+      date: string;
+      present: boolean;
+      teams: { name: string } | null;
+    }>
+  ).map((row) => ({
+    date: row.date,
+    present: row.present,
+    teamName: row.teams?.name ?? "Team",
+  }));
+
+  const folderSummaries = (
+    (folders ?? []) as unknown as Array<{
+      id: string;
+      name: string;
+      chats: Array<{ id: string }>;
+    }>
+  ).map((folder) => ({
+    id: folder.id,
+    name: folder.name,
+    chatCount: folder.chats.length,
+  }));
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-12">
@@ -49,6 +93,74 @@ export async function CoachHome({ userId }: { userId: string }) {
           </div>
         </div>
       )}
+
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold tracking-tight">
+            Recent Attendance
+          </h2>
+          <Link
+            href="/coach/attendance"
+            className="text-xs font-medium text-brand hover:underline"
+          >
+            View all →
+          </Link>
+        </div>
+        {recentAttendance.length > 0 ? (
+          <div className="flex flex-wrap gap-2 rounded-3xl bg-card p-6 shadow-soft">
+            {recentAttendance.map((row, index) => (
+              <Badge
+                // biome-ignore lint/suspicious/noArrayIndexKey: rows aren't individually addressable (no id)
+                key={index}
+                variant={row.present ? "default" : "destructive"}
+              >
+                {row.teamName} · {formatDate(row.date)} ·{" "}
+                {row.present ? "Present" : "Absent"}
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 rounded-3xl bg-card p-12 text-center shadow-soft">
+            <p className="text-muted-foreground">No attendance taken yet.</p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold tracking-tight">
+            Saved Drill Folders
+          </h2>
+          <Link
+            href="/coach/drills"
+            className="text-xs font-medium text-brand hover:underline"
+          >
+            Open Drills →
+          </Link>
+        </div>
+        {folderSummaries.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {folderSummaries.map((folder) => (
+              <Link
+                key={folder.id}
+                href={`/coach/drills?folder=${folder.id}`}
+                className="flex flex-col gap-1 rounded-3xl bg-card p-6 shadow-soft transition-transform hover:-translate-y-0.5"
+              >
+                <span className="truncate text-sm font-semibold">
+                  {folder.name}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {folder.chatCount} chat{folder.chatCount === 1 ? "" : "s"}
+                </span>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 rounded-3xl bg-card p-12 text-center shadow-soft">
+            <p className="text-muted-foreground">No drill folders saved yet.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -41,6 +41,13 @@ export interface LatestPlan {
   updatedAt: string;
 }
 
+export interface AttendanceSummaryRow {
+  teamId: string;
+  teamName: string;
+  date: string;
+  present: boolean;
+}
+
 export interface SessionPlanData {
   email: string;
   sport: string;
@@ -49,6 +56,7 @@ export interface SessionPlanData {
   coachCue: string | null;
   equipment: Equipment[];
   streak: number;
+  recentAttendance: AttendanceSummaryRow[];
 }
 
 function mapDrill(row: DrillRow): Drill {
@@ -101,10 +109,11 @@ export async function getSessionPlanData(
     { data: chats },
     { data: feedback },
     { data: keptDrills },
+    { data: attendanceRows },
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("email, sport, positions")
+      .select("email, sport, positions, equipment")
       .eq("id", userId)
       .single(),
     supabase
@@ -126,6 +135,12 @@ export async function getSessionPlanData(
       .from("drills")
       .select("chat_messages(created_at)")
       .eq("kept", true),
+    supabase
+      .from("attendance")
+      .select("team_id, date, present, teams(name)")
+      .eq("player_id", userId)
+      .order("date", { ascending: false })
+      .limit(5),
   ]);
 
   const chatRow = ((chats ?? []) as unknown as ChatRow[])[0];
@@ -139,13 +154,28 @@ export async function getSessionPlanData(
     .map((row) => row.chat_messages?.created_at?.slice(0, 10))
     .filter((date): date is string => Boolean(date));
 
+  const recentAttendance: AttendanceSummaryRow[] = (
+    (attendanceRows ?? []) as unknown as Array<{
+      team_id: string;
+      date: string;
+      present: boolean;
+      teams: { name: string } | null;
+    }>
+  ).map((row) => ({
+    teamId: row.team_id,
+    teamName: row.teams?.name ?? "Team",
+    date: row.date,
+    present: row.present,
+  }));
+
   return {
     email: profile?.email ?? "",
     sport: profile?.sport ?? "Soccer",
     position: plan?.position ?? profile?.positions?.[0] ?? null,
     plan,
     coachCue: feedback?.coach_text ?? null,
-    equipment: plan?.trainingContext?.equipment ?? [],
+    equipment: (profile?.equipment ?? []) as Equipment[],
     streak: computeStreak(streakDates),
+    recentAttendance,
   };
 }

@@ -17,5 +17,6 @@ export async function setDrillKept(drillId: string, kept: boolean) {
   if (error) throw error;
 
   revalidatePath("/");
-  revalidatePath("/session-plan");
+  revalidatePath("/drill-qa");
+  revalidatePath("/coach/drills");
 }

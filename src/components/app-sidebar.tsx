@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
 import {
-  ChartIcon,
   ChatIcon,
   ClipboardIcon,
   CloseIcon,
@@ -26,15 +25,17 @@ type NavItem = {
 
 const PLAYER_NAV: NavItem[] = [
   { href: "/", label: "Home", icon: HomeIcon },
-  { href: "/session-plan", label: "Session Plan", icon: ClipboardIcon },
+  { href: "/attendance", label: "Attendance", icon: ClipboardIcon },
   { href: "/drill-qa", label: "Drill Q&A", icon: ChatIcon },
-  { href: "/teams", label: "Progress", icon: ChartIcon },
+  { href: "/teams", label: "Teams", icon: UsersIcon },
   { href: "/settings", label: "Settings", icon: SlidersIcon },
 ];
 
 const COACH_NAV: NavItem[] = [
   { href: "/", label: "Home", icon: HomeIcon },
   { href: "/coach/teams", label: "Teams", icon: UsersIcon },
+  { href: "/coach/attendance", label: "Attendance", icon: ClipboardIcon },
+  { href: "/coach/drills", label: "Drills", icon: ChatIcon },
   { href: "/settings", label: "Settings", icon: SlidersIcon },
 ];
 

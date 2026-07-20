@@ -17,6 +17,20 @@ async function assertCoachesTeam(
   return !!team;
 }
 
+async function assertPlayerOnTeam(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  teamId: string,
+  userId: string,
+) {
+  const { data: membership } = await supabase
+    .from("team_members")
+    .select("team_id")
+    .eq("team_id", teamId)
+    .eq("player_id", userId)
+    .single();
+  return !!membership;
+}
+
 const MAX_DATES_PER_RANGE = 200;
 
 function datesInRange(
@@ -189,4 +203,58 @@ export async function setAttendance(
   if (error) throw error;
 
   revalidatePath(`/coach/teams/${teamId}`);
+}
+
+export async function addOwnAttendanceDate(teamId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+  if (!(await assertPlayerOnTeam(supabase, teamId, user.id))) {
+    throw new Error("Team not found.");
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const { error } = await supabase.from("attendance").upsert(
+    {
+      team_id: teamId,
+      player_id: user.id,
+      date: today,
+      present: true,
+    },
+    { onConflict: "team_id,player_id,date", ignoreDuplicates: true },
+  );
+  if (error) throw error;
+
+  revalidatePath(`/attendance/${teamId}`);
+}
+
+export async function setOwnAttendance(
+  teamId: string,
+  date: string,
+  present: boolean,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+  if (!(await assertPlayerOnTeam(supabase, teamId, user.id))) {
+    throw new Error("Team not found.");
+  }
+
+  const { error } = await supabase.from("attendance").upsert(
+    {
+      team_id: teamId,
+      player_id: user.id,
+      date,
+      present,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "team_id,player_id,date" },
+  );
+  if (error) throw error;
+
+  revalidatePath(`/attendance/${teamId}`);
 }

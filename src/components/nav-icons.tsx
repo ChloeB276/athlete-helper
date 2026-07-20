@@ -42,14 +42,6 @@ export function ChatIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function ChartIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <Icon {...props}>
-      <path d="M5 20V12M10 20V7M15 20v-6M20 20V4" />
-    </Icon>
-  );
-}
-
 export function SlidersIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

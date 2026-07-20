@@ -12,15 +12,12 @@ interface TrainingContext {
 export async function POST(request: Request) {
   const { feedback, position, trainingContext } = (await request.json()) as {
     feedback?: string;
-    position?: string;
-    trainingContext?: TrainingContext;
+    position?: string | null;
+    trainingContext?: TrainingContext | null;
   };
 
-  if (!feedback?.trim() || !position?.trim() || !trainingContext) {
-    return Response.json(
-      { error: "feedback, position, and trainingContext are required" },
-      { status: 400 },
-    );
+  if (!feedback?.trim()) {
+    return Response.json({ error: "feedback is required" }, { status: 400 });
   }
 
   const supabase = await createClient();
@@ -47,8 +44,8 @@ export async function POST(request: Request) {
   try {
     const result = await generateDrillBreakdown(
       feedback,
-      position,
-      trainingContext,
+      position ?? null,
+      trainingContext ?? null,
     );
 
     if (!result) {

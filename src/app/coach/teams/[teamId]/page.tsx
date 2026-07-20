@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { InviteForm } from "~/components/invite-form";
+import { RenameTeamForm } from "~/components/rename-team-form";
 import {
   addAttendanceDate,
   addAttendanceDateRange,
@@ -78,7 +79,7 @@ export default async function CoachTeamPage({
         <Link href="/coach/teams" className="text-sm text-muted-foreground">
           ← All teams
         </Link>
-        <h1 className="text-3xl font-bold tracking-tight">{team.name}</h1>
+        <RenameTeamForm teamId={team.id} currentName={team.name} />
       </div>
 
       <div className="rounded-3xl bg-card p-6 shadow-soft">
@@ -137,7 +138,9 @@ export default async function CoachTeamPage({
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold tracking-tight">Attendance</h2>
+          <h2 id="attendance" className="text-lg font-semibold tracking-tight">
+            Attendance
+          </h2>
           {roster && roster.length > 0 && (
             <form action={addAttendanceDate.bind(null, team.id)}>
               <button

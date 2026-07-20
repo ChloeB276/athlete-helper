@@ -52,12 +52,21 @@ function describeTrainingContext(
   return `${group}, ${equipment}`;
 }
 
+function describeAudience(position: string | null): string {
+  return position
+    ? `a ${position} focused on ${positionFocus(position)}`
+    : "a player";
+}
+
 async function searchDrillVideos(
   difficulty: Difficulty,
-  position: string,
+  position: string | null,
   feedback: string,
-  trainingContext: DrillGenerationTrainingContext,
+  trainingContext: DrillGenerationTrainingContext | null,
 ): Promise<{ difficulty: Difficulty; results: VideoResult[] }> {
+  const contextClause = trainingContext
+    ? ` The player is ${describeTrainingContext(trainingContext)}.`
+    : "";
   const { toolResults } = await generateText({
     model: chatModel,
     tools: {
@@ -67,7 +76,7 @@ async function searchDrillVideos(
       }),
     },
     toolChoice: "required",
-    prompt: `Find real YouTube videos of a ${difficulty.toLowerCase()}-difficulty soccer drill that helps with this coach feedback: "${feedback}", for a ${position} focused on ${positionFocus(position)}. The player is ${describeTrainingContext(trainingContext)}. Search for specific, well-matched drill videos, not general highlight reels.`,
+    prompt: `Find real YouTube videos of a ${difficulty.toLowerCase()}-difficulty soccer drill that helps with this coaching need: "${feedback}", for ${describeAudience(position)}.${contextClause} Search for specific, well-matched drill videos, not general highlight reels.`,
   });
 
   const output = toolResults?.[0]?.output as
@@ -113,8 +122,8 @@ const responseSchema = z.object({
  */
 export async function generateDrillBreakdown(
   feedback: string,
-  position: string,
-  trainingContext: DrillGenerationTrainingContext,
+  position: string | null,
+  trainingContext: DrillGenerationTrainingContext | null,
 ): Promise<DrillGenerationResult | null> {
   const searches = await Promise.all(
     DRILL_DIFFICULTIES.map((difficulty) =>
@@ -125,10 +134,13 @@ export async function generateDrillBreakdown(
   const grounded = assignDistinctVideos(searches);
   if (grounded.length === 0) return null;
 
+  const contextClause = trainingContext
+    ? `, ${describeTrainingContext(trainingContext)}`
+    : "";
   const { object } = await generateObject({
     model: chatModel,
     schema: responseSchema,
-    system: `You are a soccer coach. For each difficulty tier below you're given a real YouTube video's title and a transcript excerpt. Write a coaching explanation of the drill shown in that video for a ${position} working on ${positionFocus(position)}, ${describeTrainingContext(trainingContext)}. Reference the specific technique, reps, and setup described in the transcript — don't invent details that aren't there. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per tier listed, in the order listed.`,
+    system: `You are a soccer coach. For each difficulty tier below you're given a real YouTube video's title and a transcript excerpt. Write a coaching explanation of the drill shown in that video for ${describeAudience(position)}${contextClause}. Reference the specific technique, reps, and setup described in the transcript — don't invent details that aren't there. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per tier listed, in the order listed.`,
     prompt: grounded
       .map(
         (g) =>

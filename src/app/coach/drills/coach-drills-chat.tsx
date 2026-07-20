@@ -2,24 +2,16 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ChatRow } from "~/app/drill-qa/drills-chat";
 import { DrillCard } from "~/components/drill-card";
-import { QnaHint } from "~/components/qna-hint";
-import { TrainingContextForm } from "~/components/training-context-form";
 import { VisualsToggle } from "~/components/visuals-toggle";
 import {
   type Chat,
   type ChatMessage,
   DEFAULT_TITLE,
   type Folder,
-  newChat,
 } from "~/lib/drill-storage";
-import {
-  acknowledgePosition,
-  acknowledgeTrainingContext,
-  breakdownFeedback,
-  describeTrainingContext,
-  type TrainingContext,
-} from "~/lib/soccer-feedback";
+import { breakdownFeedback } from "~/lib/soccer-feedback";
 import {
   appendMessagesRecord,
   createChatRecord,
@@ -33,15 +25,31 @@ import {
   renameChatRecord,
   renameFolderRecord,
   toggleKeepDrillRecord,
-  updateTrainingContextRecord,
 } from "~/lib/supabase/drills-repo";
-import { fetchProfilePositions } from "~/lib/supabase/profile-repo";
 import { cn } from "~/lib/utils";
 
-export function DrillsChat() {
+function newCoachChat(): Chat {
+  return {
+    id: crypto.randomUUID(),
+    title: DEFAULT_TITLE,
+    folderId: null,
+    position: null,
+    trainingContext: null,
+    messages: [
+      {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content:
+          'Hi! Tell me what kind of drills you need — e.g. "defensive drills for U12" or "finishing drills for wingers" — and I\'ll find real videos to match.',
+      },
+    ],
+    updatedAt: Date.now(),
+  };
+}
+
+export function CoachDrillsChat() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [defaultPosition, setDefaultPosition] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
     new Set(),
@@ -53,37 +61,34 @@ export function DrillsChat() {
   const [showVisuals, setShowVisuals] = useState(false);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: only read the ?chat= param on initial load, not on every navigation
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only read the ?folder= param on initial load, not on every navigation
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [loadedChats, loadedFolders, loadedPositions] = await Promise.all([
+      const [loadedChats, loadedFolders] = await Promise.all([
         fetchChats(),
         fetchFolders(),
-        fetchProfilePositions(),
       ]);
       if (cancelled) return;
       setChats(loadedChats);
       setFolders(loadedFolders);
-      setDefaultPosition(loadedPositions[0] ?? null);
-      const requestedId = searchParams.get("chat");
-      const pendingFeedback = searchParams.get("feedback");
-      let initialId = loadedChats.some((c) => c.id === requestedId)
-        ? requestedId
-        : (loadedChats[0]?.id ?? null);
 
-      if (pendingFeedback && !initialId) {
-        const chat = newChat(loadedPositions[0] ?? null);
-        setChats((prev) => [chat, ...prev]);
-        createChatRecord(chat).catch((error) => console.error(error));
-        initialId = chat.id;
+      const folderParam = searchParams.get("folder");
+      let initialId = loadedChats[0]?.id ?? null;
+      if (folderParam) {
+        setCollapsedFolders((prev) => {
+          const next = new Set(prev);
+          next.delete(folderParam);
+          return next;
+        });
+        const folderChats = loadedChats.filter(
+          (c) => c.folderId === folderParam,
+        );
+        if (folderChats.length > 0) initialId = folderChats[0].id;
       }
-
       setSelectedId(initialId);
-      if (pendingFeedback) setInput(pendingFeedback);
     }
     load();
     return () => {
@@ -109,7 +114,7 @@ export function DrillsChat() {
   }
 
   function createChat() {
-    const chat = newChat(defaultPosition);
+    const chat = newCoachChat();
     setChats((prev) => [chat, ...prev]);
     setSelectedId(chat.id);
     setInput("");
@@ -161,47 +166,6 @@ export function DrillsChat() {
     deleteFolderRecord(id).catch((error) => console.error(error));
   }
 
-  function submitTrainingContext(context: TrainingContext) {
-    if (!selected) return;
-
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: describeTrainingContext(context),
-    };
-    const assistantMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content: acknowledgeTrainingContext(),
-    };
-    const updatedAt = Date.now();
-
-    setChats((prev) =>
-      prev.map((c) =>
-        c.id === selected.id
-          ? {
-              ...c,
-              trainingContext: context,
-              messages: [...c.messages, userMessage, assistantMessage],
-              updatedAt,
-            }
-          : c,
-      ),
-    );
-
-    updateTrainingContextRecord(selected.id, context).catch((error) =>
-      console.error(error),
-    );
-    appendMessagesRecord({
-      chatId: selected.id,
-      userMessage,
-      assistantMessage,
-      position: selected.position,
-      title: selected.title,
-      updatedAt,
-    }).catch((error) => console.error(error));
-  }
-
   async function sendMessage() {
     if (!selected || sending) return;
     const trimmed = input.trim();
@@ -214,44 +178,6 @@ export function DrillsChat() {
     };
     setInput("");
 
-    if (!selected.position) {
-      const nextPosition = trimmed;
-      const assistantMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: acknowledgePosition(trimmed),
-      };
-      const updatedAt = Date.now();
-
-      setChats((prev) =>
-        prev.map((c) =>
-          c.id === selected.id
-            ? {
-                ...c,
-                position: nextPosition,
-                messages: [...c.messages, userMessage, assistantMessage],
-                updatedAt,
-              }
-            : c,
-        ),
-      );
-
-      appendMessagesRecord({
-        chatId: selected.id,
-        userMessage,
-        assistantMessage,
-        position: nextPosition,
-        title: selected.title,
-        updatedAt,
-      }).catch((error) => console.error(error));
-      return;
-    }
-
-    // The text input is only rendered once trainingContext is set (see the
-    // TrainingContextForm branch below), so this is always non-null here.
-    if (!selected.trainingContext) return;
-    const trainingContext = selected.trainingContext;
-
     setChats((prev) =>
       prev.map((c) =>
         c.id === selected.id
@@ -263,11 +189,7 @@ export function DrillsChat() {
     setSending(true);
     let assistantMessage: ChatMessage;
     try {
-      const breakdown = await breakdownFeedback(
-        trimmed,
-        selected.position,
-        trainingContext,
-      );
+      const breakdown = await breakdownFeedback(trimmed, null, null);
       assistantMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -283,7 +205,7 @@ export function DrillsChat() {
         content:
           error instanceof Error
             ? error.message
-            : "Sorry, I couldn't generate drills for that just now. Please try again.",
+            : "Sorry, I couldn't find drills for that just now. Please try again.",
       };
     } finally {
       setSending(false);
@@ -310,7 +232,7 @@ export function DrillsChat() {
       chatId: selected.id,
       userMessage,
       assistantMessage,
-      position: selected.position,
+      position: null,
       title: nextTitle,
       updatedAt,
     }).catch((error) => console.error(error));
@@ -473,7 +395,7 @@ export function DrillsChat() {
           <div className="space-y-0.5">
             {chats.length === 0 && (
               <p className="px-2 py-3 text-sm text-muted-foreground">
-                No chats yet. Start a new one to get drills from your feedback.
+                No chats yet. Start a new one to get drill recommendations.
               </p>
             )}
             {ungrouped.map((chat) => (
@@ -507,11 +429,6 @@ export function DrillsChat() {
               <h1 className="truncate text-lg font-bold tracking-tight">
                 {selected.title}
               </h1>
-              {selected.position && (
-                <span className="rounded-full bg-brand px-3 py-1 text-xs font-semibold tracking-widest text-brand-foreground uppercase">
-                  {selected.position}
-                </span>
-              )}
               <div className="ml-auto">
                 <VisualsToggle
                   enabled={showVisuals}
@@ -560,9 +477,6 @@ export function DrillsChat() {
                         {message.outro}
                       </p>
                     )}
-                    {message.role === "assistant" && (
-                      <QnaHint onAsk={() => inputRef.current?.focus()} />
-                    )}
                   </div>
                 </div>
               ))}
@@ -570,46 +484,39 @@ export function DrillsChat() {
             </div>
 
             <div className="p-4">
-              {selected.position && !selected.trainingContext ? (
-                <TrainingContextForm onSubmit={submitTrainingContext} />
-              ) : (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    sendMessage();
-                  }}
-                  className="mx-auto flex max-w-3xl items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-sm"
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  sendMessage();
+                }}
+                className="mx-auto flex max-w-3xl items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-sm"
+              >
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  disabled={sending}
+                  placeholder={
+                    sending
+                      ? "Searching for real drills..."
+                      : "What drills do you need? e.g. defensive drills for U12"
+                  }
+                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
+                />
+                <button
+                  type="submit"
+                  aria-label="Send"
+                  disabled={sending}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
                 >
-                  <input
-                    ref={inputRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    disabled={sending}
-                    placeholder={
-                      sending
-                        ? "Searching for real drills..."
-                        : selected.position
-                          ? "Describe some feedback..."
-                          : "e.g. center back, winger, goalkeeper..."
-                    }
-                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
-                  />
-                  <button
-                    type="submit"
-                    aria-label="Send"
-                    disabled={sending}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
-                  >
-                    →
-                  </button>
-                </form>
-              )}
+                  →
+                </button>
+              </form>
             </div>
           </>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
             <p className="text-sm text-muted-foreground">
-              Select a chat or start a new one to get drills from your feedback.
+              Select a chat or start a new one to get drill recommendations.
             </p>
             <button
               type="button"
@@ -621,93 +528,6 @@ export function DrillsChat() {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-export function ChatRow({
-  chat,
-  folders,
-  selected,
-  editing,
-  draftName,
-  onSelect,
-  onStartRename,
-  onDraftChange,
-  onCommitRename,
-  onMove,
-  onDelete,
-}: {
-  chat: Chat;
-  folders: Folder[];
-  selected: boolean;
-  editing: boolean;
-  draftName: string;
-  onSelect: () => void;
-  onStartRename: () => void;
-  onDraftChange: (value: string) => void;
-  onCommitRename: () => void;
-  onMove: (folderId: string | null) => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div
-      className={cn(
-        "group flex items-center gap-1 rounded-md px-2 py-1.5 transition-colors",
-        selected ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
-      )}
-    >
-      {editing ? (
-        <input
-          // biome-ignore lint/a11y/noAutofocus: rename field opens in response to an explicit user click
-          autoFocus
-          value={draftName}
-          onChange={(e) => onDraftChange(e.target.value)}
-          onBlur={onCommitRename}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onCommitRename();
-          }}
-          className="flex-1 bg-transparent text-sm outline-none"
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={onSelect}
-          className="flex-1 truncate text-left text-sm"
-        >
-          {chat.title}
-        </button>
-      )}
-      <select
-        value={chat.folderId ?? ""}
-        onChange={(e) => onMove(e.target.value || null)}
-        aria-label="Move to folder"
-        onClick={(e) => e.stopPropagation()}
-        className="w-0 shrink-0 overflow-hidden bg-transparent text-[10px] text-muted-foreground opacity-0 outline-none group-hover:w-auto group-hover:overflow-visible group-hover:opacity-100"
-      >
-        <option value="">No folder</option>
-        {folders.map((folder) => (
-          <option key={folder.id} value={folder.id}>
-            {folder.name}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        onClick={onStartRename}
-        aria-label="Rename chat"
-        className="text-xs text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
-      >
-        ✎
-      </button>
-      <button
-        type="button"
-        onClick={onDelete}
-        aria-label="Delete chat"
-        className="text-xs text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-      >
-        ✕
-      </button>
     </div>
   );
 }

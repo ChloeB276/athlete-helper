@@ -4,13 +4,7 @@ import {
   FeedbackCard,
   type FeedbackCardItem,
 } from "~/components/feedback-card";
-import { Badge } from "~/components/ui/badge";
 import { createClient } from "~/lib/supabase/server";
-
-function formatDate(date: string) {
-  const [, month, day] = date.split("-");
-  return `${Number(month)}/${Number(day)}`;
-}
 
 export default async function PlayerTeamPage({
   params,
@@ -59,13 +53,6 @@ export default async function PlayerTeamPage({
     createdAt: row.created_at,
   }));
 
-  const { data: attendance } = await supabase
-    .from("attendance")
-    .select("date, present")
-    .eq("team_id", teamId)
-    .eq("player_id", user.id)
-    .order("date", { ascending: false });
-
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
       <div className="flex flex-col gap-2">
@@ -73,26 +60,6 @@ export default async function PlayerTeamPage({
           ← All teams
         </Link>
         <h1 className="text-3xl font-bold tracking-tight">{teamName}</h1>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">Attendance</h2>
-        {attendance && attendance.length > 0 ? (
-          <div className="flex flex-wrap gap-2 rounded-3xl bg-card p-6 shadow-soft">
-            {attendance.map((row) => (
-              <Badge
-                key={row.date}
-                variant={row.present ? "default" : "destructive"}
-              >
-                {formatDate(row.date)} · {row.present ? "Present" : "Absent"}
-              </Badge>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2 rounded-3xl bg-card p-12 text-center shadow-soft">
-            <p className="text-muted-foreground">No attendance recorded yet.</p>
-          </div>
-        )}
       </div>
 
       <div className="flex flex-col gap-4">

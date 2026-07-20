@@ -1,21 +1,16 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { EquipmentEditor } from "~/components/equipment-editor";
 import { HelpWidget } from "~/components/help-widget";
-import { PasteNotesForm } from "~/components/paste-notes-form";
-import { PlanStepList, TodayChecklist } from "~/components/plan-step-list";
+import { TodayChecklist } from "~/components/plan-step-list";
+import { Badge } from "~/components/ui/badge";
 import { getSessionPlanData } from "~/lib/session-plan-data";
-import { EQUIPMENT_OPTIONS } from "~/lib/soccer-feedback";
 import { createClient } from "~/lib/supabase/server";
 import { cn } from "~/lib/utils";
 
-function equipmentLabel(equipment: string[]): string {
-  if (equipment.length === 0) return "None set";
-  return equipment
-    .map(
-      (value) =>
-        EQUIPMENT_OPTIONS.find((option) => option.value === value)?.label ??
-        value,
-    )
-    .join(", ");
+function formatDate(date: string) {
+  const [, month, day] = date.split("-");
+  return `${Number(month)}/${Number(day)}`;
 }
 
 function SummaryRow({
@@ -73,29 +68,51 @@ export async function SignedInHome() {
           </span>
         </div>
 
-        <PasteNotesForm />
-
-        {data.plan ? (
-          <>
-            <div className="rounded-3xl bg-card p-6 shadow-soft">
-              <h2 className="mb-2 text-sm font-semibold text-brand">
-                Core Development Focus
-              </h2>
-              <p className="text-sm text-muted-foreground">{data.plan.intro}</p>
+        <div className="rounded-3xl bg-card p-6 shadow-soft">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold">Attendance</h2>
+            <Link
+              href="/attendance"
+              className="text-xs font-medium text-brand hover:underline"
+            >
+              View all →
+            </Link>
+          </div>
+          {data.recentAttendance.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {data.recentAttendance.map((row) => (
+                <Badge
+                  key={`${row.teamId}-${row.date}`}
+                  variant={row.present ? "default" : "destructive"}
+                >
+                  {row.teamName} · {formatDate(row.date)} ·{" "}
+                  {row.present ? "Present" : "Absent"}
+                </Badge>
+              ))}
             </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No attendance recorded yet.
+            </p>
+          )}
+        </div>
 
-            <div className="flex flex-col gap-3">
-              <h2 className="text-lg font-semibold tracking-tight">
-                Home Workout Plan
-              </h2>
-              <PlanStepList drills={data.plan.drills} />
-            </div>
-          </>
+        <Link
+          href="/drill-qa"
+          className="flex w-fit items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition-transform hover:scale-105"
+        >
+          + Start New Drill
+        </Link>
+
+        {data.plan && data.plan.drills.length > 0 ? (
+          <div className="rounded-3xl bg-card p-6 shadow-soft">
+            <h2 className="mb-3 text-sm font-semibold">Today</h2>
+            <TodayChecklist drills={data.plan.drills} />
+          </div>
         ) : (
           <div className="flex flex-col items-center gap-2 rounded-3xl bg-card p-12 text-center shadow-soft">
             <p className="text-muted-foreground">
-              You haven't generated a plan yet. Paste some coach notes above to
-              get started.
+              You haven't generated a plan yet. Start a new drill to get going.
             </p>
           </div>
         )}
@@ -109,23 +126,16 @@ export async function SignedInHome() {
             <SummaryRow label="Sport" value={data.sport} />
             <SummaryRow label="Coach cue" value={coachCue} />
             <SummaryRow
-              label="Equipment"
-              value={equipmentLabel(data.equipment)}
-            />
-            <SummaryRow
               label="Streak"
-              value={`${data.streak}-day streak`}
+              value={`🔥 ${data.streak}-day streak`}
               highlight
             />
           </dl>
-        </div>
-
-        {data.plan && data.plan.drills.length > 0 && (
-          <div className="rounded-3xl bg-card p-6 shadow-soft">
-            <h2 className="mb-3 text-sm font-semibold">Today</h2>
-            <TodayChecklist drills={data.plan.drills} />
+          <div className="mt-4 flex flex-col gap-2 border-t border-border/60 pt-4">
+            <span className="text-sm text-muted-foreground">Equipment</span>
+            <EquipmentEditor equipment={data.equipment} />
           </div>
-        )}
+        </div>
       </div>
 
       <HelpWidget />

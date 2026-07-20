@@ -112,3 +112,50 @@ export async function removeFromRoster(teamId: string, playerId: string) {
 
   revalidatePath(`/coach/teams/${teamId}`);
 }
+
+export async function renameTeam(
+  teamId: string,
+  _prevState: TeamActionState,
+  formData: FormData,
+): Promise<TeamActionState> {
+  const name = formData.get("name");
+  if (typeof name !== "string" || name.trim().length === 0) {
+    return { error: "Team name is required." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { error } = await supabase
+    .from("teams")
+    .update({ name: name.trim() })
+    .eq("id", teamId)
+    .eq("coach_id", user.id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/coach/teams/${teamId}`);
+  revalidatePath("/coach/teams");
+  revalidatePath("/");
+  return { success: "Team renamed." };
+}
+
+export async function deleteTeam(teamId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+
+  const { error } = await supabase
+    .from("teams")
+    .delete()
+    .eq("id", teamId)
+    .eq("coach_id", user.id);
+  if (error) throw error;
+
+  revalidatePath("/coach/teams");
+  revalidatePath("/");
+}

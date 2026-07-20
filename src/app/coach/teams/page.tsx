@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CreateTeamForm } from "~/components/create-team-form";
+import { DeleteTeamButton } from "~/components/delete-team-button";
 import { createClient } from "~/lib/supabase/server";
 
 export default async function CoachTeamsPage() {
@@ -46,15 +47,17 @@ export default async function CoachTeamsPage() {
       {teams && teams.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {teams.map((team) => (
-            <Link
+            <div
               key={team.id}
-              href={`/coach/teams/${team.id}`}
-              className="flex flex-col gap-1 rounded-3xl bg-card p-6 shadow-soft transition-transform hover:-translate-y-0.5"
+              className="flex flex-col gap-3 rounded-3xl bg-card p-6 shadow-soft transition-transform hover:-translate-y-0.5"
             >
-              <span className="truncate text-sm font-semibold">
-                {team.name}
-              </span>
-            </Link>
+              <Link href={`/coach/teams/${team.id}`}>
+                <span className="truncate text-sm font-semibold">
+                  {team.name}
+                </span>
+              </Link>
+              <DeleteTeamButton teamId={team.id} teamName={team.name} />
+            </div>
           ))}
         </div>
       ) : (

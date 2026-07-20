@@ -62,8 +62,8 @@ interface GeneratedDrill {
 
 export async function breakdownFeedback(
   feedback: string,
-  position: string,
-  trainingContext: TrainingContext,
+  position: string | null,
+  trainingContext: TrainingContext | null,
 ): Promise<FeedbackBreakdown> {
   const response = await fetch("/api/drill-feedback", {
     method: "POST",
