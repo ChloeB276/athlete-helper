@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { AppSidebar } from "~/components/app-sidebar";
 import { Navbar } from "~/components/navbar";
 import { createClient } from "~/lib/supabase/server";
 import { ThemeProvider } from "./theme-provider";
@@ -38,8 +39,21 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider>
-          <Navbar user={user} isAdmin={isAdmin} role={role} />
-          {children}
+          {user ? (
+            <div className="flex min-h-svh flex-col md:flex-row">
+              <AppSidebar
+                role={role}
+                isAdmin={isAdmin}
+                userEmail={user.email ?? ""}
+              />
+              <main className="min-w-0 flex-1">{children}</main>
+            </div>
+          ) : (
+            <>
+              <Navbar />
+              {children}
+            </>
+          )}
         </ThemeProvider>
       </body>
     </html>

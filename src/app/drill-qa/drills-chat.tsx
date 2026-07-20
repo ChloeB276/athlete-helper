@@ -70,10 +70,20 @@ export function DrillsChat() {
       setFolders(loadedFolders);
       setDefaultPosition(loadedPositions[0] ?? null);
       const requestedId = searchParams.get("chat");
-      const initialId = loadedChats.some((c) => c.id === requestedId)
+      const pendingFeedback = searchParams.get("feedback");
+      let initialId = loadedChats.some((c) => c.id === requestedId)
         ? requestedId
         : (loadedChats[0]?.id ?? null);
+
+      if (pendingFeedback && !initialId) {
+        const chat = newChat(loadedPositions[0] ?? null);
+        setChats((prev) => [chat, ...prev]);
+        createChatRecord(chat).catch((error) => console.error(error));
+        initialId = chat.id;
+      }
+
       setSelectedId(initialId);
+      if (pendingFeedback) setInput(pendingFeedback);
     }
     load();
     return () => {
