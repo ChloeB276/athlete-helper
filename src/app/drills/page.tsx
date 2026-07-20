@@ -1,21 +1,12 @@
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
-import { createClient } from "~/lib/supabase/server";
-import { DrillsChat } from "./drills-chat";
 
-export default async function DrillsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  return (
-    <Suspense fallback={null}>
-      <DrillsChat />
-    </Suspense>
-  );
+export default async function DrillsRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const chat = params.chat;
+  const query = typeof chat === "string" ? `?chat=${chat}` : "";
+  redirect(`/drill-qa${query}`);
 }
