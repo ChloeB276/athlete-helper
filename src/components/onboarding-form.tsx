@@ -2,10 +2,11 @@
 
 import { useActionState } from "react";
 import { Button } from "~/components/ui/button";
-import { FEET, type Foot, POSITIONS } from "~/lib/onboarding";
+import { FEET, type Foot, POSITIONS, type Role } from "~/lib/onboarding";
 import {
   completeOnboarding,
   type OnboardingActionState,
+  selectRole,
 } from "~/lib/onboarding-actions";
 
 const INITIAL_STATE: OnboardingActionState = {};
@@ -26,7 +27,49 @@ const FOOT_EMOJI: Record<Foot, string> = { left: "🦵⬅️", right: "➡️�
 const pillClasses =
   "flex items-center gap-1.5 cursor-pointer rounded-full border border-border px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors peer-checked:border-brand peer-checked:bg-brand peer-checked:text-brand-foreground hover:border-foreground";
 
-export function OnboardingForm() {
+const ROLE_CARDS: Array<{ value: Role; emoji: string; label: string }> = [
+  { value: "coach", emoji: "📋", label: "I'm a coach" },
+  { value: "player", emoji: "⚽", label: "I'm a player" },
+];
+
+function RolePicker() {
+  const [state, formAction, pending] = useActionState(
+    selectRole,
+    INITIAL_STATE,
+  );
+
+  return (
+    <form action={formAction} className="flex flex-col gap-8">
+      <div className="grid grid-cols-2 gap-3">
+        {ROLE_CARDS.map((card) => (
+          <label key={card.value}>
+            <input
+              type="radio"
+              name="role"
+              value={card.value}
+              required
+              className="peer sr-only"
+            />
+            <span className="flex cursor-pointer flex-col items-center gap-2 rounded-3xl border border-border px-4 py-6 text-sm font-semibold text-muted-foreground transition-colors peer-checked:border-brand peer-checked:bg-brand peer-checked:text-brand-foreground hover:border-foreground">
+              <span aria-hidden="true" className="text-2xl">
+                {card.emoji}
+              </span>
+              {card.label}
+            </span>
+          </label>
+        ))}
+      </div>
+
+      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+
+      <Button type="submit" disabled={pending} className="w-full">
+        {pending ? "Saving..." : "Continue"}
+      </Button>
+    </form>
+  );
+}
+
+function PlayerOnboardingForm() {
   const [state, formAction, pending] = useActionState(
     completeOnboarding,
     INITIAL_STATE,
@@ -82,4 +125,12 @@ export function OnboardingForm() {
       </Button>
     </form>
   );
+}
+
+export function OnboardingForm({ role }: { role: Role | null }) {
+  if (role === null) {
+    return <RolePicker />;
+  }
+
+  return <PlayerOnboardingForm />;
 }
