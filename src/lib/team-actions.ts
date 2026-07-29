@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { env } from "~/env";
+import { FEET, type Foot } from "~/lib/onboarding";
 import { getPlanContext } from "~/lib/plan";
 import { createAdminClient } from "~/lib/supabase/admin";
 import { createClient } from "~/lib/supabase/server";
@@ -12,6 +13,10 @@ const FREE_TEAM_LIMIT = 1;
 export interface TeamActionState {
   error?: string;
   success?: string;
+}
+
+function isFoot(value: unknown): value is Foot {
+  return typeof value === "string" && FEET.includes(value as Foot);
 }
 
 export async function createTeam(
@@ -122,6 +127,57 @@ export async function inviteToTeam(
 
   revalidatePath(`/coach/teams/${teamId}`);
   return { success: "Invite sent." };
+}
+
+export async function updateRosterPlayerProfile(
+  teamId: string,
+  playerId: string,
+  _prevState: TeamActionState,
+  formData: FormData,
+): Promise<TeamActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { data: team } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("id", teamId)
+    .eq("coach_id", user.id)
+    .single();
+  if (!team) return { error: "Team not found." };
+
+  const { data: member } = await supabase
+    .from("team_members")
+    .select("player_id")
+    .eq("team_id", teamId)
+    .eq("player_id", playerId)
+    .single();
+  if (!member) return { error: "Player is not on this roster." };
+
+  const positions = formData
+    .getAll("positions")
+    .filter((value): value is string => typeof value === "string");
+  const strongFoot = formData.get("strongFoot");
+
+  if (positions.length === 0) {
+    return { error: "Pick at least one position." };
+  }
+  if (!isFoot(strongFoot)) {
+    return { error: "Select a strong foot." };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ positions, strong_foot: strongFoot })
+    .eq("id", playerId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/coach/teams/${teamId}`);
+  revalidatePath(`/coach/teams/${teamId}/players/${playerId}/edit`);
+  return { success: "Player profile updated." };
 }
 
 export async function removeFromRoster(teamId: string, playerId: string) {
