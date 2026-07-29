@@ -1,5 +1,7 @@
 import { generateDrillBreakdown } from "~/lib/drill-generation";
-import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
+import { getPlanContext } from "~/lib/plan";
+import { drillQuotaKey, drillQuotaWindow } from "~/lib/quota";
+import { checkRateLimit, getClientIp, peekRateLimit } from "~/lib/rate-limit";
 import { createClient } from "~/lib/supabase/server";
 
 const ANONYMOUS_RATE_LIMIT = { windowSeconds: 60 * 60, maxRequests: 3 };
@@ -25,6 +27,9 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  let quotaKey: string | null = null;
+  let quotaWindow: { windowSeconds: number; maxRequests: number } | null = null;
+
   if (!user) {
     const allowed = await checkRateLimit(
       `drill-feedback:${getClientIp(request)}`,
@@ -35,6 +40,23 @@ export async function POST(request: Request) {
         {
           error:
             "You've hit the demo's hourly limit. Sign up for unlimited access.",
+        },
+        { status: 429 },
+      );
+    }
+  } else {
+    const plan = await getPlanContext(supabase, user.id);
+    const isCoach = plan.role === "coach";
+    quotaKey = drillQuotaKey(plan, user.id);
+    quotaWindow = drillQuotaWindow(plan);
+
+    const allowed = await checkRateLimit(quotaKey, quotaWindow);
+    if (!allowed) {
+      return Response.json(
+        {
+          error: isCoach
+            ? "You've hit your weekly drill-recommendation limit. Upgrade to Athlete Helper Pro for 10/week."
+            : "You've hit your monthly drill-generation limit. Upgrade to Athlete Helper Pro for 30/month.",
         },
         { status: 429 },
       );
@@ -53,6 +75,14 @@ export async function POST(request: Request) {
         { error: "Couldn't find any matching drill videos" },
         { status: 502 },
       );
+    }
+
+    if (quotaKey && quotaWindow) {
+      const { remaining } = await peekRateLimit(quotaKey, quotaWindow);
+      return Response.json({
+        ...result,
+        quota: { remaining, max: quotaWindow.maxRequests },
+      });
     }
 
     return Response.json(result);

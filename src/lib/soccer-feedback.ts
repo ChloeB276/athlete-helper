@@ -49,6 +49,7 @@ export interface FeedbackBreakdown {
   intro: string;
   drills: Drill[];
   outro: string;
+  quota?: { remaining: number; max: number };
 }
 
 interface GeneratedDrill {
@@ -78,12 +79,17 @@ export async function breakdownFeedback(
     throw new Error(body?.error ?? "Failed to generate drill feedback");
   }
 
-  const data: { intro: string; outro: string; drills: GeneratedDrill[] } =
-    await response.json();
+  const data: {
+    intro: string;
+    outro: string;
+    drills: GeneratedDrill[];
+    quota?: { remaining: number; max: number };
+  } = await response.json();
 
   return {
     intro: data.intro,
     outro: data.outro,
+    quota: data.quota,
     drills: data.drills.map((drill) => ({
       id: crypto.randomUUID(),
       difficulty: drill.difficulty,
