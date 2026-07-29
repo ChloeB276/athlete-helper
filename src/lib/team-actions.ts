@@ -3,8 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { env } from "~/env";
+import { getPlanContext } from "~/lib/plan";
 import { createAdminClient } from "~/lib/supabase/admin";
 import { createClient } from "~/lib/supabase/server";
+
+const FREE_TEAM_LIMIT = 1;
 
 export interface TeamActionState {
   error?: string;
@@ -26,10 +29,30 @@ export async function createTeam(
   } = await supabase.auth.getUser();
   if (!user) return { error: "You must be signed in." };
 
+  const plan = await getPlanContext(supabase, user.id);
+  if (!plan.isSubscribed) {
+    const { count } = await supabase
+      .from("teams")
+      .select("id", { count: "exact", head: true })
+      .eq("coach_id", user.id);
+    if ((count ?? 0) >= FREE_TEAM_LIMIT) {
+      return {
+        error: "Free plan is limited to 1 team. Upgrade to create more.",
+      };
+    }
+  }
+
   const { error } = await supabase
     .from("teams")
     .insert({ coach_id: user.id, name: name.trim() });
-  if (error) return { error: error.message };
+  if (error) {
+    if (error.message.includes("FREE_TEAM_LIMIT_REACHED")) {
+      return {
+        error: "Free plan is limited to 1 team. Upgrade to create more.",
+      };
+    }
+    return { error: error.message };
+  }
 
   revalidatePath("/coach/teams");
   return { success: "Team created." };

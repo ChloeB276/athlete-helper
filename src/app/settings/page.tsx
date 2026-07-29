@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import { CheckoutSuccessModal } from "~/components/checkout-success-modal";
+import { PlanCard } from "~/components/plan-card";
 import { SettingsForm } from "~/components/settings-form";
 import { signOut } from "~/lib/auth-actions";
+import { getPlanContext } from "~/lib/plan";
 import { createClient } from "~/lib/supabase/server";
 
 export default async function SettingsPage() {
@@ -16,8 +20,14 @@ export default async function SettingsPage() {
     .eq("id", user.id)
     .single();
 
+  const plan = await getPlanContext(supabase, user.id);
+
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6 px-6 py-10">
+      <Suspense fallback={null}>
+        <CheckoutSuccessModal plan={plan} />
+      </Suspense>
+
       <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
 
       <div className="rounded-3xl bg-card p-6 shadow-soft">
@@ -32,6 +42,8 @@ export default async function SettingsPage() {
           </button>
         </form>
       </div>
+
+      <PlanCard plan={plan} />
 
       {profile?.role === "player" && (
         <div className="rounded-3xl bg-card p-6 shadow-soft">

@@ -2,8 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EquipmentEditor } from "~/components/equipment-editor";
 import { HelpWidget } from "~/components/help-widget";
+import { PlanCard } from "~/components/plan-card";
 import { TodayChecklist } from "~/components/plan-step-list";
 import { Badge } from "~/components/ui/badge";
+import type { PlanContext } from "~/lib/plan";
 import { getSessionPlanData } from "~/lib/session-plan-data";
 import { createClient } from "~/lib/supabase/server";
 import { cn } from "~/lib/utils";
@@ -37,7 +39,7 @@ function SummaryRow({
   );
 }
 
-export async function SignedInHome() {
+export async function SignedInHome({ plan }: { plan: PlanContext }) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -136,6 +138,8 @@ export async function SignedInHome() {
             <EquipmentEditor equipment={data.equipment} />
           </div>
         </div>
+
+        <PlanCard plan={plan} title="Plan" />
       </div>
 
       <HelpWidget />

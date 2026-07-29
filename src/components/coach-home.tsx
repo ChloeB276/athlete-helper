@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { PlanCard } from "~/components/plan-card";
 import { Badge } from "~/components/ui/badge";
+import type { PlanContext } from "~/lib/plan";
 import { createClient } from "~/lib/supabase/server";
 
 function formatDate(date: string) {
@@ -7,7 +9,13 @@ function formatDate(date: string) {
   return `${Number(month)}/${Number(day)}`;
 }
 
-export async function CoachHome({ userId }: { userId: string }) {
+export async function CoachHome({
+  userId,
+  plan,
+}: {
+  userId: string;
+  plan: PlanContext;
+}) {
   const supabase = await createClient();
   const [{ data: teams }, { data: attendanceRows }, { data: folders }] =
     await Promise.all([
@@ -74,6 +82,8 @@ export async function CoachHome({ userId }: { userId: string }) {
             : "Create Your First Team"}
         </Link>
       </div>
+
+      <PlanCard plan={plan} title="Plan" />
 
       {teams && teams.length > 0 && (
         <div className="flex flex-col gap-4">

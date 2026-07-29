@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { DrillCard } from "~/components/drill-card";
 import { QnaHint } from "~/components/qna-hint";
+import { QuotaBadge } from "~/components/quota-badge";
 import { TrainingContextForm } from "~/components/training-context-form";
 import { VisualsToggle } from "~/components/visuals-toggle";
 import {
@@ -13,6 +14,7 @@ import {
   type Folder,
   newChat,
 } from "~/lib/drill-storage";
+import type { DrillQuota } from "~/lib/quota";
 import {
   acknowledgePosition,
   acknowledgeTrainingContext,
@@ -38,9 +40,10 @@ import {
 import { fetchProfilePositions } from "~/lib/supabase/profile-repo";
 import { cn } from "~/lib/utils";
 
-export function DrillsChat() {
+export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [quota, setQuota] = useState(initialQuota);
   const [defaultPosition, setDefaultPosition] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
@@ -275,6 +278,9 @@ export function DrillsChat() {
         drills: breakdown.drills,
         outro: breakdown.outro,
       };
+      if (breakdown.quota) {
+        setQuota((prev) => ({ ...prev, ...breakdown.quota }));
+      }
     } catch (error) {
       console.error(error);
       assistantMessage = {
@@ -512,7 +518,12 @@ export function DrillsChat() {
                   {selected.position}
                 </span>
               )}
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-3">
+                <QuotaBadge
+                  remaining={quota.remaining}
+                  max={quota.max}
+                  windowLabel={quota.windowLabel}
+                />
                 <VisualsToggle
                   enabled={showVisuals}
                   onToggle={() => setShowVisuals((v) => !v)}

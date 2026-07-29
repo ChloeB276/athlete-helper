@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { CoachHome } from "~/components/coach-home";
 import { LandingPage } from "~/components/landing-page";
 import { SignedInHome } from "~/components/signed-in-home";
+import { getPlanContext } from "~/lib/plan";
 import { createClient } from "~/lib/supabase/server";
 
 export default async function Home() {
@@ -17,15 +18,17 @@ export default async function Home() {
       .eq("id", user.id)
       .single();
 
-    if (!profile?.onboarding_completed_at) {
+    if (!profile?.onboarding_completed_at || !profile.role) {
       redirect("/onboarding");
     }
 
+    const plan = await getPlanContext(supabase, user.id);
+
     if (profile.role === "coach") {
-      return <CoachHome userId={user.id} />;
+      return <CoachHome userId={user.id} plan={plan} />;
     }
 
-    return <SignedInHome />;
+    return <SignedInHome plan={plan} />;
   }
 
   return <LandingPage />;

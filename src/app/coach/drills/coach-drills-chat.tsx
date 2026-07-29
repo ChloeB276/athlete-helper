@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChatRow } from "~/app/drill-qa/drills-chat";
 import { DrillCard } from "~/components/drill-card";
+import { QuotaBadge } from "~/components/quota-badge";
 import { VisualsToggle } from "~/components/visuals-toggle";
 import {
   type Chat,
@@ -11,6 +12,7 @@ import {
   DEFAULT_TITLE,
   type Folder,
 } from "~/lib/drill-storage";
+import type { DrillQuota } from "~/lib/quota";
 import { breakdownFeedback } from "~/lib/soccer-feedback";
 import {
   appendMessagesRecord,
@@ -47,9 +49,14 @@ function newCoachChat(): Chat {
   };
 }
 
-export function CoachDrillsChat() {
+export function CoachDrillsChat({
+  quota: initialQuota,
+}: {
+  quota: DrillQuota;
+}) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [quota, setQuota] = useState(initialQuota);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
     new Set(),
@@ -197,6 +204,9 @@ export function CoachDrillsChat() {
         drills: breakdown.drills,
         outro: breakdown.outro,
       };
+      if (breakdown.quota) {
+        setQuota((prev) => ({ ...prev, ...breakdown.quota }));
+      }
     } catch (error) {
       console.error(error);
       assistantMessage = {
@@ -429,7 +439,12 @@ export function CoachDrillsChat() {
               <h1 className="truncate text-lg font-bold tracking-tight">
                 {selected.title}
               </h1>
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-3">
+                <QuotaBadge
+                  remaining={quota.remaining}
+                  max={quota.max}
+                  windowLabel={quota.windowLabel}
+                />
                 <VisualsToggle
                   enabled={showVisuals}
                   onToggle={() => setShowVisuals((v) => !v)}
