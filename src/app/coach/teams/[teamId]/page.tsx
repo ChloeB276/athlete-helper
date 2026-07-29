@@ -108,6 +108,12 @@ export default async function CoachTeamPage({
                     >
                       Give Feedback
                     </Link>
+                    <Link
+                      href={`/coach/teams/${team.id}/players/${member.player_id}/edit`}
+                      className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent"
+                    >
+                      Edit
+                    </Link>
                     <form
                       action={removeFromRoster.bind(
                         null,
