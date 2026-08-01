@@ -5,10 +5,9 @@ import { headers } from "next/headers";
 import { env } from "~/env";
 import { FEET, type Foot } from "~/lib/onboarding";
 import { getPlanContext } from "~/lib/plan";
+import { FREE_TEAM_LIMIT } from "~/lib/quota";
 import { createAdminClient } from "~/lib/supabase/admin";
 import { createClient } from "~/lib/supabase/server";
-
-const FREE_TEAM_LIMIT = 1;
 
 export interface TeamActionState {
   error?: string;

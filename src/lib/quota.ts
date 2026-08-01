@@ -6,6 +6,7 @@ import type { createClient } from "~/lib/supabase/server";
 export const DAY_SECONDS = 24 * 60 * 60;
 export const PLAYER_DRILL_LIMITS = { free: 5, paid: 30 };
 export const COACH_DRILL_LIMITS = { free: 3, paid: 10 };
+export const FREE_TEAM_LIMIT = 1;
 
 export interface DrillQuotaWindow {
   windowSeconds: number;
