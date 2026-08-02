@@ -1,4 +1,4 @@
-import { generateObject, generateText } from "ai";
+import { generateText, streamObject, streamText } from "ai";
 import { z } from "zod";
 import { chatModel, gateway } from "~/lib/ai";
 import { positionFocus } from "~/lib/soccer-feedback";
@@ -168,9 +168,10 @@ After searching, respond with ONLY a JSON array containing every 0-based result 
   }
 }
 
+// Field order matches reading/streaming order: intro first, then drills one
+// at a time, then outro last.
 const responseSchema = z.object({
   intro: z.string(),
-  outro: z.string(),
   drills: z.array(
     z.object({
       difficulty: z.enum(DRILL_DIFFICULTIES),
@@ -178,36 +179,151 @@ const responseSchema = z.object({
       description: z.string(),
     }),
   ),
+  outro: z.string(),
 });
 
+export type ChatStreamEvent =
+  | { type: "answer"; text: string }
+  | { type: "drills"; partial: Partial<DrillGenerationResult> }
+  | { type: "not-found" };
+
 /**
- * Grounds a handful of the best-matching sources for the coaching need,
- * then writes a coaching explanation for each. Returns null if nothing was
- * found at all (caller should surface that as an error).
+ * Decides whether the latest message is asking for new/different/more
+ * drills, or is a plain question/comment about the conversation so far
+ * (e.g. "why aren't these focused on long passing?"). Only the former
+ * needs a fresh video search — answering the latter directly avoids
+ * regenerating a near-identical drill set for what was really just a
+ * question. Streams the answer (when there is one) as it's generated via
+ * `onAnswerDelta`, called with the cumulative text so far.
  */
-export async function generateDrillBreakdown(
+async function streamRespondOrRequestDrills(
+  feedback: string,
+  history: ConversationTurn[],
+  position: string | null,
+  trainingContext: DrillGenerationTrainingContext | null,
+  onAnswerDelta: (cumulativeText: string) => void,
+): Promise<{ needsDrills: boolean }> {
+  const transcript = history
+    .slice(-MAX_HISTORY_TURNS)
+    .map(
+      (turn) => `${turn.role === "user" ? "Player" : "Coach"}: ${turn.content}`,
+    )
+    .join("\n");
+  const contextClause = trainingContext
+    ? `, ${describeTrainingContext(trainingContext)}`
+    : "";
+  const MARKER = "NEED_DRILLS";
+
+  try {
+    const { textStream } = streamText({
+      model: chatModel,
+      system: `You are a soccer coaching assistant chatting with ${describeAudience(position)}${contextClause}, continuing a conversation about drills you've already recommended. Talk like a friendly coach texting back, not a formal report — warm, natural, conversational phrasing. Conversation so far:\n${transcript}\n\nDecide how to respond to the player's latest message. If they're asking for new, additional, more specific, or different drills (e.g. "give me more", "focus more on X", "these don't work, find better ones", "something harder"), respond with EXACTLY the text ${MARKER} and nothing else. Otherwise — a question, clarification, comment, or anything that doesn't require finding new drill videos — answer directly and conversationally in 1-4 sentences, referencing the specific drills already discussed where relevant. Don't invent drills or describe videos that weren't already discussed.`,
+      prompt: feedback,
+    });
+
+    let buffer = "";
+    let decided: boolean | null = null;
+    for await (const delta of textStream) {
+      buffer += delta;
+      if (decided === null) {
+        if (buffer.length < MARKER.length) continue;
+        decided = buffer.trim().startsWith(MARKER);
+        if (!decided) onAnswerDelta(buffer);
+        continue;
+      }
+      if (!decided) onAnswerDelta(buffer);
+    }
+    if (decided === null) {
+      decided = buffer.trim().startsWith(MARKER);
+      if (!decided) onAnswerDelta(buffer);
+    }
+    return { needsDrills: decided };
+  } catch (error) {
+    // If this gate fails for any reason, fall back to the existing
+    // behavior (treat it as a drill request) rather than losing the turn.
+    console.error("streamRespondOrRequestDrills failed", error);
+    return { needsDrills: true };
+  }
+}
+
+function mapPartialToResult(
+  partial: {
+    intro?: string;
+    outro?: string;
+    drills?: Array<
+      | {
+          difficulty?: Difficulty;
+          title?: string;
+          description?: string;
+        }
+      | undefined
+    >;
+  },
+  selected: VideoResult[],
+): Partial<DrillGenerationResult> {
+  const drills = (partial.drills ?? [])
+    .map((drill, i) => {
+      const source = selected[i];
+      if (!source) return null;
+      return {
+        difficulty: drill?.difficulty ?? "Beginner",
+        title: drill?.title ?? "",
+        description: drill?.description ?? "",
+        sourceTitle: source.title,
+        imageUrl: source.image ?? null,
+        videoUrl: source.url,
+      };
+    })
+    .filter((drill): drill is GeneratedDrill => drill !== null);
+
+  return { intro: partial.intro, outro: partial.outro, drills };
+}
+
+/**
+ * Entry point for the drill chat: routes a follow-up message to either a
+ * plain conversational answer or a fresh drill search, depending on what
+ * the player is actually asking for, streaming the response as it's
+ * generated via `onEvent`. The first message in a chat (no history yet)
+ * always goes straight to drill search.
+ */
+export async function streamChatResponse(
   feedback: string,
   position: string | null,
   trainingContext: DrillGenerationTrainingContext | null,
-  history: ConversationTurn[] = [],
-): Promise<DrillGenerationResult | null> {
+  history: ConversationTurn[],
+  onEvent: (event: ChatStreamEvent) => void,
+): Promise<void> {
+  if (history.length > 0) {
+    const { needsDrills } = await streamRespondOrRequestDrills(
+      feedback,
+      history,
+      position,
+      trainingContext,
+      (text) => onEvent({ type: "answer", text }),
+    );
+    if (!needsDrills) return;
+  }
+
   const ranked = await searchDrillSources(
     position,
     feedback,
     trainingContext,
     history,
   );
-  if (ranked.length === 0) return null;
+  if (ranked.length === 0) {
+    onEvent({ type: "not-found" });
+    return;
+  }
 
   const selected = ranked.slice(0, MAX_DRILLS);
-
   const contextClause = trainingContext
     ? `, ${describeTrainingContext(trainingContext)}`
     : "";
-  const { object } = await generateObject({
+
+  const { partialObjectStream, object } = streamObject({
     model: chatModel,
     schema: responseSchema,
-    system: `You are a soccer coach. For each source below you're given a real source's title and an excerpt (from a video transcript or an article). Write a coaching explanation of the drill described in that source for ${describeAudience(position)}${contextClause}, and assign it a difficulty (Beginner, Intermediate, Advanced, or Elite) based on how demanding the drill itself actually is — let the difficulties vary naturally based on each source's content, don't force an even spread across tiers. Reference the specific technique, reps, and setup described in the excerpt — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If a source's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per source listed, in the order listed.`,
+    system: `You are a soccer coach texting a player, not writing a formal report — warm, natural, conversational phrasing throughout. For each source below you're given a real source's title and an excerpt (from a video transcript or an article). Write a coaching explanation of the drill described in that source for ${describeAudience(position)}${contextClause}, and assign it a difficulty (Beginner, Intermediate, Advanced, or Elite) based on how demanding the drill itself actually is — let the difficulties vary naturally based on each source's content, don't force an even spread across tiers. Reference the specific technique, reps, and setup described in the excerpt — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If a source's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per source listed, in the order listed.`,
     prompt: selected
       .map(
         (source, i) =>
@@ -216,20 +332,10 @@ export async function generateDrillBreakdown(
       .join("\n\n"),
   });
 
-  const drills = object.drills
-    .map((drill, i) => {
-      const source = selected[i];
-      if (!source) return null;
-      return {
-        difficulty: drill.difficulty,
-        title: drill.title,
-        description: drill.description,
-        sourceTitle: source.title,
-        imageUrl: source.image ?? null,
-        videoUrl: source.url,
-      };
-    })
-    .filter((drill): drill is NonNullable<typeof drill> => drill !== null);
+  for await (const partial of partialObjectStream) {
+    onEvent({ type: "drills", partial: mapPartialToResult(partial, selected) });
+  }
 
-  return { intro: object.intro, outro: object.outro, drills };
+  const final = await object;
+  onEvent({ type: "drills", partial: mapPartialToResult(final, selected) });
 }

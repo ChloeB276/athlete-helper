@@ -66,11 +66,22 @@ export interface ConversationTurn {
   content: string;
 }
 
+type StreamEvent =
+  | { type: "answer"; text: string }
+  | {
+      type: "drills";
+      partial: { intro?: string; outro?: string; drills?: GeneratedDrill[] };
+    }
+  | { type: "not-found" }
+  | { type: "quota"; quota: { remaining: number; max: number } }
+  | { type: "error"; message: string };
+
 export async function breakdownFeedback(
   feedback: string,
   position: string | null,
   trainingContext: TrainingContext | null,
   history: ConversationTurn[] = [],
+  onUpdate?: (snapshot: FeedbackBreakdown) => void,
 ): Promise<FeedbackBreakdown> {
   const response = await fetch("/api/drill-feedback", {
     method: "POST",
@@ -84,29 +95,77 @@ export async function breakdownFeedback(
     } | null;
     throw new Error(body?.error ?? "Failed to generate drill feedback");
   }
+  if (!response.body) {
+    throw new Error("Failed to generate drill feedback");
+  }
 
-  const data: {
-    intro: string;
-    outro: string;
-    drills: GeneratedDrill[];
-    quota?: { remaining: number; max: number };
-  } = await response.json();
+  const snapshot: FeedbackBreakdown = { intro: "", outro: "", drills: [] };
+  const drillIds: string[] = [];
+  let notFound = false;
+  let errorMessage: string | null = null;
 
-  return {
-    intro: data.intro,
-    outro: data.outro,
-    quota: data.quota,
-    drills: data.drills.map((drill) => ({
-      id: crypto.randomUUID(),
-      difficulty: drill.difficulty,
-      title: drill.title,
-      description: drill.description,
-      sourceTitle: drill.sourceTitle,
-      imageUrl: drill.imageUrl,
-      videoUrl: drill.videoUrl,
-      kept: false,
-    })),
-  };
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const event = JSON.parse(line) as StreamEvent;
+
+      switch (event.type) {
+        case "answer":
+          snapshot.intro = event.text;
+          break;
+        case "drills":
+          if (event.partial.intro !== undefined) {
+            snapshot.intro = event.partial.intro;
+          }
+          if (event.partial.outro !== undefined) {
+            snapshot.outro = event.partial.outro;
+          }
+          if (event.partial.drills) {
+            snapshot.drills = event.partial.drills.map((drill, i) => {
+              if (drillIds[i] === undefined) drillIds[i] = crypto.randomUUID();
+              const id = drillIds[i];
+              return {
+                id,
+                difficulty: drill.difficulty,
+                title: drill.title,
+                description: drill.description,
+                sourceTitle: drill.sourceTitle,
+                imageUrl: drill.imageUrl,
+                videoUrl: drill.videoUrl,
+                kept: false,
+              };
+            });
+          }
+          break;
+        case "not-found":
+          notFound = true;
+          break;
+        case "quota":
+          snapshot.quota = event.quota;
+          break;
+        case "error":
+          errorMessage = event.message;
+          break;
+      }
+
+      onUpdate?.({ ...snapshot, drills: [...snapshot.drills] });
+    }
+  }
+
+  if (errorMessage) throw new Error(errorMessage);
+  if (notFound) throw new Error("Couldn't find any matching drill videos");
+
+  return snapshot;
 }
 
 export const ASK_POSITION_PROMPT =
