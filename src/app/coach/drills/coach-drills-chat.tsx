@@ -186,6 +186,11 @@ export function CoachDrillsChat({
     };
     setInput("");
 
+    const history = selected.messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
     setChats((prev) =>
       prev.map((c) =>
         c.id === selected.id
@@ -197,7 +202,7 @@ export function CoachDrillsChat({
     setSending(true);
     let assistantMessage: ChatMessage;
     try {
-      const breakdown = await breakdownFeedback(trimmed, null, null);
+      const breakdown = await breakdownFeedback(trimmed, null, null, history);
       assistantMessage = {
         id: crypto.randomUUID(),
         role: "assistant",

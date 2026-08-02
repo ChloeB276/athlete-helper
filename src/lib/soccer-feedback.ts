@@ -61,15 +61,21 @@ interface GeneratedDrill {
   videoUrl: string | null;
 }
 
+export interface ConversationTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export async function breakdownFeedback(
   feedback: string,
   position: string | null,
   trainingContext: TrainingContext | null,
+  history: ConversationTurn[] = [],
 ): Promise<FeedbackBreakdown> {
   const response = await fetch("/api/drill-feedback", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ feedback, position, trainingContext }),
+    body: JSON.stringify({ feedback, position, trainingContext, history }),
   });
 
   if (!response.ok) {
