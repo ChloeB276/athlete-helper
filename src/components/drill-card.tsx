@@ -1,6 +1,16 @@
-import Image from "next/image";
 import type { Drill } from "~/lib/soccer-feedback";
 import { cn } from "~/lib/utils";
+
+const VIDEO_HOSTS = ["youtube.com", "youtu.be", "vimeo.com"];
+
+function isVideoUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return VIDEO_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
+}
 
 export function DrillCard({
   drill,
@@ -58,12 +68,14 @@ export function DrillCard({
       {showVisuals && drill.imageUrl && drill.videoUrl && (
         <div className="mt-1 flex items-center gap-3">
           <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg">
-            <Image
+            {/* Sources now span the open web, not just YouTube, so images
+                come from arbitrary hostnames — next/image would require
+                every one of them whitelisted in next.config.ts. */}
+            {/* biome-ignore lint/performance/noImgElement: arbitrary external source domains, can't whitelist them all for next/image */}
+            <img
               src={drill.imageUrl}
               alt={drill.sourceTitle ?? drill.title}
-              fill
-              className="object-cover"
-              sizes="96px"
+              className="h-full w-full object-cover"
             />
           </div>
           <a
@@ -72,7 +84,11 @@ export function DrillCard({
             rel="noopener noreferrer"
             className="text-xs font-semibold text-brand hover:underline"
           >
-            ▶ {drill.sourceTitle ?? "Watch the source video"}
+            {isVideoUrl(drill.videoUrl) ? "▶" : "📄"}{" "}
+            {drill.sourceTitle ??
+              (isVideoUrl(drill.videoUrl)
+                ? "Watch the source video"
+                : "Read the source article")}
           </a>
         </div>
       )}
