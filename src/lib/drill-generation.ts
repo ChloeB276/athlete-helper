@@ -107,9 +107,9 @@ async function searchDrillVideos(
         }),
       },
       toolChoice: "required",
-      prompt: `Find real coaching resources (YouTube videos, coaching-site articles, or blog posts) for a ${difficulty.toLowerCase()}-difficulty soccer drill that helps with this exact coaching need: "${feedback}", for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize results whose title or content specifically addresses "${feedback}" over generic technique or passing content — reject a well-produced result if it doesn't actually match this need or violates the equipment constraint above. A video is preferable when one fits well, but a specific, well-matched article is better than a loosely-related video. Search for specific, well-matched drills, not general highlight reels or listicles.
+      prompt: `Find real coaching resources (YouTube videos, coaching-site articles, or blog posts) for a ${difficulty.toLowerCase()}-difficulty soccer drill that helps with this exact coaching need: "${feedback}", for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize results whose title or content specifically addresses "${feedback}" over generic technique or passing content. A video is preferable when one fits well, but a specific, well-matched article is better than a loosely-related video. Search for specific, well-matched drills, not general highlight reels or listicles.
 
-After searching, respond with ONLY a JSON array of the 0-based indices of the results that genuinely and specifically match this exact need, best match first (e.g. "[2, 0]"). Leave out any result that's only generically or loosely related, or that needs equipment the player doesn't have. An empty array ("[]") is correct if none genuinely fit. No other text.`,
+After searching, respond with ONLY a JSON array containing every 0-based result index, ranked best match first — don't omit any index. Rank a result that specifically addresses "${feedback}" above one that's only generically related, and always rank a result that needs equipment the player doesn't have below every result that doesn't (e.g. "[2, 0, 1]" for 3 results). Every result must appear exactly once, even weak ones. No other text.`,
     });
 
     const output = toolResults?.[0]?.output as
@@ -117,6 +117,9 @@ After searching, respond with ONLY a JSON array of the 0-based indices of the re
       | undefined;
     const results = output?.results ?? [];
     const ranked = parseRankedIndices(text, results.length);
+    console.log(
+      `[drill-search] ${difficulty}: ${results.length} raw results, ${ranked.length} ranked`,
+    );
     return {
       difficulty,
       results: ranked
