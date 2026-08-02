@@ -1,5 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { SVGProps } from "react";
+import { cn } from "~/lib/utils";
 
 const TICKER_ITEMS = [
   "PACE",
@@ -15,6 +17,112 @@ const TICKER_ITEMS = [
 const TICKER_SEQUENCE = [0, 1, 2].flatMap((rep) =>
   TICKER_ITEMS.map((item) => ({ key: `${rep}-${item}`, item })),
 );
+
+const PAIN_POINTS = [
+  {
+    step: "01",
+    title: "Feedback fades fast",
+    description:
+      "“Tighten up your first touch” turns into a vague memory by the time you're back on the pitch. No drill, no plan, nothing to actually work on.",
+  },
+  {
+    step: "02",
+    title: "Generic drills waste reps",
+    description:
+      "You search “soccer drills” and get a thousand videos that have nothing to do with your position or what your coach actually said.",
+  },
+  {
+    step: "03",
+    title: "Athlete Helper turns it into a plan",
+    description:
+      "Paste in the feedback, get a structured, position-specific drill in seconds — built around what your coach actually meant.",
+  },
+];
+
+function CheckIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.25}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="m4.5 10.5 3.5 3.5 7.5-8" />
+    </svg>
+  );
+}
+
+function XMarkIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.25}
+      strokeLinecap="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M5.5 5.5 14.5 14.5M14.5 5.5 5.5 14.5" />
+    </svg>
+  );
+}
+
+function ComparisonMark({ value }: { value: boolean | "partial" }) {
+  if (value === "partial") {
+    return (
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+        ~
+      </span>
+    );
+  }
+  return value ? (
+    <CheckIcon className="mx-auto h-5 w-5 text-brand" />
+  ) : (
+    <XMarkIcon className="mx-auto h-5 w-5 text-muted-foreground/50" />
+  );
+}
+
+const COMPARISON_COLUMNS = [
+  "Athlete Helper",
+  "Texting your coach",
+  "YouTube search",
+  "Guessing",
+] as const;
+
+const COMPARISON_ROWS: Array<{
+  label: string;
+  values: [
+    boolean | "partial",
+    boolean | "partial",
+    boolean | "partial",
+    boolean | "partial",
+  ];
+}> = [
+  {
+    label: "Matches your coach's exact words",
+    values: [true, false, false, false],
+  },
+  {
+    label: "Tuned to your specific position",
+    values: [true, false, "partial", false],
+  },
+  {
+    label: "Available the second you need it",
+    values: [true, false, true, true],
+  },
+];
+
+const COMPARISON_TIME_ROW = [
+  "Under 1 minute",
+  "Hours, if they reply",
+  "10–20 min of scrolling",
+  "Instant, usually wrong",
+];
 
 const FEATURES = [
   {
@@ -37,6 +145,24 @@ const FEATURES = [
       "Goalkeeper to striker — get drills tuned to what your role actually demands.",
     image: "https://images.unsplash.com/photo-1626248801379-51a0748a5f96",
     imageAlt: "Two players from opposing teams battling for the ball",
+  },
+];
+
+const COACH_FEATURES = [
+  {
+    title: "Rosters, not spreadsheets",
+    description:
+      "Build a team roster once — positions, strong foot, and all — and keep it up to date in a couple of taps.",
+  },
+  {
+    title: "Attendance in seconds",
+    description:
+      "Mark who showed up to practice or a game without digging through old group chats.",
+  },
+  {
+    title: "Feedback that becomes a drill",
+    description:
+      "Give a player feedback and Athlete Helper turns it into a drill they can actually run before you see them again.",
   },
 ];
 
@@ -66,14 +192,15 @@ export function LandingPage() {
         <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-20 sm:py-28 lg:grid-cols-2 lg:items-center">
           <div className="flex flex-col items-start gap-6">
             <span className="rounded-full bg-card px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-soft">
-              Built for athletes, by athletes
+              Built for athletes and coaches
             </span>
             <h1 className="text-4xl leading-tight font-bold tracking-tight sm:text-5xl md:text-6xl">
-              Turn feedback into your next level
+              Feedback that <em className="text-brand not-italic">actually</em>{" "}
+              turns into your next drill
             </h1>
             <p className="max-w-md text-lg text-muted-foreground">
-              Turn any feedback into instant, position-specific drills curated
-              just for you.
+              Paste in what your coach said and get an instant,
+              position-specific drill — no more guessing what they meant.
             </p>
             <div className="flex flex-wrap gap-3 pt-2">
               <Link
@@ -113,6 +240,41 @@ export function LandingPage() {
                 ●
               </span>
             </span>
+          ))}
+        </div>
+      </section>
+
+      {/* Sound familiar? */}
+      <section className="mx-auto w-full max-w-6xl px-6 py-20">
+        <div className="mx-auto mb-12 flex max-w-xl flex-col items-center gap-3 text-center">
+          <span className="text-sm font-semibold text-brand">
+            Sound familiar?
+          </span>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">
+            Getting feedback isn't the hard part
+          </h2>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-3">
+          {PAIN_POINTS.map((point, index) => (
+            <div
+              key={point.step}
+              className={cn(
+                "flex flex-col gap-3 rounded-3xl p-8 shadow-soft",
+                index === PAIN_POINTS.length - 1
+                  ? "bg-gradient-to-br from-accent-a/60 via-card to-accent-b/50"
+                  : "bg-card",
+              )}
+            >
+              <span className="text-sm font-semibold text-brand">
+                {point.step}
+              </span>
+              <h3 className="text-lg font-semibold tracking-tight">
+                {point.title}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {point.description}
+              </p>
+            </div>
           ))}
         </div>
       </section>
@@ -243,6 +405,86 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Comparison table */}
+      <section className="mx-auto w-full max-w-6xl px-6 py-20">
+        <div className="mx-auto mb-12 flex max-w-xl flex-col items-center gap-3 text-center">
+          <span className="text-sm font-semibold text-brand">
+            Why Athlete Helper
+          </span>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">
+            Athlete Helper vs. the old way
+          </h2>
+        </div>
+        <div className="overflow-x-auto rounded-3xl bg-card shadow-soft">
+          <table className="w-full min-w-[640px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border/60">
+                <th
+                  scope="col"
+                  className="p-5 text-left font-medium text-muted-foreground"
+                >
+                  <span className="sr-only">Category</span>
+                </th>
+                {COMPARISON_COLUMNS.map((column, index) => (
+                  <th
+                    key={column}
+                    scope="col"
+                    className={cn(
+                      "p-5 text-center font-semibold tracking-tight",
+                      index === 0 ? "text-brand" : "text-muted-foreground",
+                    )}
+                  >
+                    {column}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARISON_ROWS.map((row) => (
+                <tr
+                  key={row.label}
+                  className="border-b border-border/60 last:border-0"
+                >
+                  <th
+                    scope="row"
+                    className="p-5 text-left font-normal text-foreground"
+                  >
+                    {row.label}
+                  </th>
+                  {row.values.map((value, index) => (
+                    <td
+                      key={COMPARISON_COLUMNS[index]}
+                      className="p-5 text-center"
+                    >
+                      <ComparisonMark value={value} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              <tr className="bg-muted/40">
+                <th
+                  scope="row"
+                  className="p-5 text-left font-semibold text-foreground"
+                >
+                  Time to get an actual plan
+                </th>
+                {COMPARISON_TIME_ROW.map((value, index) => (
+                  <td
+                    key={COMPARISON_COLUMNS[index]}
+                    className={cn(
+                      "p-5 text-center font-semibold",
+                      index === 0 ? "text-brand" : "text-muted-foreground",
+                    )}
+                  >
+                    {value}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       {/* Editorial image break */}
       <section className="mx-auto w-full max-w-6xl px-6 py-4">
         <div className="relative flex min-h-[280px] items-center justify-center overflow-hidden rounded-3xl shadow-soft">
@@ -258,6 +500,52 @@ export function LandingPage() {
             Every touch. Every session.
             <span className="text-accent-a"> Every position.</span>
           </p>
+        </div>
+      </section>
+
+      {/* For Coaches */}
+      <section className="mx-auto w-full max-w-6xl px-6 py-20">
+        <div className="relative overflow-hidden rounded-3xl bg-card shadow-soft">
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-br from-accent-b/25 via-card to-accent-a/20"
+          />
+          <div className="relative grid gap-10 p-8 sm:p-12 lg:grid-cols-2 lg:items-center">
+            <div className="flex flex-col items-start gap-5">
+              <span className="rounded-full bg-background px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-soft">
+                Built for coaches too
+              </span>
+              <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">
+                Give feedback once. Let it become the drill.
+              </h2>
+              <p className="max-w-md text-muted-foreground">
+                Manage your roster, track attendance, and turn what you tell
+                each player into a drill they'll actually run before the next
+                session — all in one place.
+              </p>
+              <Link
+                href="/signup"
+                className="mt-1 inline-flex rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition-transform hover:scale-105"
+              >
+                Start Coaching
+              </Link>
+            </div>
+            <div className="flex flex-col gap-4">
+              {COACH_FEATURES.map((feature) => (
+                <div
+                  key={feature.title}
+                  className="rounded-2xl bg-background/80 p-5 shadow-soft"
+                >
+                  <h3 className="text-sm font-semibold tracking-tight">
+                    {feature.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {feature.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -289,14 +577,22 @@ export function LandingPage() {
             </h2>
             <p className="max-w-md text-background/85">
               Get a position-specific breakdown of your next piece of coach
-              feedback in under a minute.
+              feedback in under a minute — or bring your whole team along.
             </p>
-            <Link
-              href="/demo"
-              className="rounded-full bg-background px-8 py-3 text-sm font-semibold text-foreground shadow-soft transition-transform hover:scale-105"
-            >
-              Start with the Demo
-            </Link>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link
+                href="/demo"
+                className="rounded-full bg-background px-8 py-3 text-sm font-semibold text-foreground shadow-soft transition-transform hover:scale-105"
+              >
+                Start with the Demo
+              </Link>
+              <Link
+                href="/signup"
+                className="rounded-full border border-background/60 px-8 py-3 text-sm font-semibold text-background shadow-soft transition-colors hover:bg-background/10"
+              >
+                Sign Up as a Coach
+              </Link>
+            </div>
           </div>
         </div>
       </section>
