@@ -1,6 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import type { SVGProps } from "react";
+import { DrillCard } from "~/components/drill-card";
+import { LogoMark } from "~/components/logo-mark";
+import { Badge } from "~/components/ui/badge";
+import type { Drill } from "~/lib/soccer-feedback";
 import { cn } from "~/lib/utils";
 
 const TICKER_ITEMS = [
@@ -17,6 +23,30 @@ const TICKER_ITEMS = [
 const TICKER_SEQUENCE = [0, 1, 2].flatMap((rep) =>
   TICKER_ITEMS.map((item) => ({ key: `${rep}-${item}`, item })),
 );
+
+const MOCK_DRILL: Drill = {
+  id: "mock-first-touch",
+  difficulty: "Intermediate",
+  title: "First-Touch Control",
+  description:
+    "4 sets of 5 minutes of wall-pass touch-and-turn reps, building from walk-through pace to full match speed.",
+  sourceTitle: null,
+  imageUrl: null,
+  videoUrl: null,
+  kept: true,
+};
+
+const MOCK_TEAMS = ["Varsity Girls", "JV Boys"];
+
+const MOCK_ATTENDANCE: Array<{
+  team: string;
+  date: string;
+  present: boolean;
+}> = [
+  { team: "Varsity Girls", date: "4/12", present: true },
+  { team: "JV Boys", date: "4/10", present: false },
+  { team: "Varsity Girls", date: "4/5", present: true },
+];
 
 const PAIN_POINTS = [
   {
@@ -172,6 +202,13 @@ const STATS = [
   { value: "1:1", label: "Feedback matched to a drill" },
 ];
 
+const FOOTER_LINKS = [
+  { href: "/#why", label: "Why" },
+  { href: "/#how-it-works", label: "How It Works" },
+  { href: "/#coaches", label: "For Coaches" },
+  { href: "/demo", label: "Demo" },
+];
+
 export function LandingPage() {
   return (
     <main className="flex flex-col">
@@ -244,8 +281,51 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Sound familiar? */}
+      {/* See it in action — a real product mockup */}
       <section className="mx-auto w-full max-w-6xl px-6 py-20">
+        <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+          <div className="flex flex-col items-start gap-4">
+            <span className="text-sm font-semibold text-brand">
+              See It In Action
+            </span>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">
+              This is the actual app
+            </h2>
+            <p className="max-w-md text-muted-foreground">
+              Type in the feedback your coach gave you. Athlete Helper hands
+              back a real drill — keep it, tweak it, or ask for another one.
+            </p>
+            <Link
+              href="/demo"
+              className="mt-1 inline-flex rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition-transform hover:scale-105"
+            >
+              Try It Yourself
+            </Link>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="font-mono text-xs text-muted-foreground">
+              athletehelper.app/demo
+            </span>
+            <div className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 shadow-soft">
+              <div className="self-start rounded-2xl bg-muted px-4 py-2.5 text-sm text-muted-foreground">
+                Got it — quicker first touch. Here's a drill for a midfielder:
+              </div>
+              <DrillCard
+                drill={MOCK_DRILL}
+                showVisuals={false}
+                onToggleKeep={() => {}}
+                onDelete={() => {}}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Sound familiar? */}
+      <section
+        id="why"
+        className="mx-auto w-full max-w-6xl scroll-mt-28 px-6 py-20"
+      >
         <div className="mx-auto mb-12 flex max-w-xl flex-col items-center gap-3 text-center">
           <span className="text-sm font-semibold text-brand">
             Sound familiar?
@@ -308,7 +388,10 @@ export function LandingPage() {
       </section>
 
       {/* How it works */}
-      <section className="mx-auto w-full max-w-6xl px-6 py-20">
+      <section
+        id="how-it-works"
+        className="mx-auto w-full max-w-6xl scroll-mt-28 px-6 py-20"
+      >
         <div className="mx-auto mb-12 flex max-w-xl flex-col items-center gap-3 text-center">
           <span className="text-sm font-semibold text-brand">How It Works</span>
           <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">
@@ -504,7 +587,10 @@ export function LandingPage() {
       </section>
 
       {/* For Coaches */}
-      <section className="mx-auto w-full max-w-6xl px-6 py-20">
+      <section
+        id="coaches"
+        className="mx-auto w-full max-w-6xl scroll-mt-28 px-6 py-20"
+      >
         <div className="relative overflow-hidden rounded-3xl bg-card shadow-soft">
           <div
             aria-hidden="true"
@@ -531,19 +617,58 @@ export function LandingPage() {
               </Link>
             </div>
             <div className="flex flex-col gap-4">
-              {COACH_FEATURES.map((feature) => (
-                <div
-                  key={feature.title}
-                  className="rounded-2xl bg-background/80 p-5 shadow-soft"
-                >
-                  <h3 className="text-sm font-semibold tracking-tight">
-                    {feature.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {feature.description}
-                  </p>
+              <span className="font-mono text-xs text-muted-foreground">
+                athletehelper.app/coach/teams
+              </span>
+              <div className="flex flex-col gap-4 rounded-3xl bg-background/80 p-5 shadow-soft">
+                <div className="flex flex-col gap-2">
+                  <span className="text-sm font-semibold tracking-tight">
+                    Your Teams
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {MOCK_TEAMS.map((team) => (
+                      <div
+                        key={team}
+                        className="truncate rounded-2xl bg-card p-3 text-xs font-semibold shadow-soft"
+                      >
+                        {team}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+                <div className="flex flex-col gap-2">
+                  <span className="text-sm font-semibold tracking-tight">
+                    Recent Attendance
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {MOCK_ATTENDANCE.map((row, index) => (
+                      <Badge
+                        // biome-ignore lint/suspicious/noArrayIndexKey: illustrative rows have no id
+                        key={index}
+                        variant={row.present ? "default" : "destructive"}
+                      >
+                        {row.team} · {row.date} ·{" "}
+                        {row.present ? "Present" : "Absent"}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {COACH_FEATURES.map((feature) => (
+                  <div
+                    key={feature.title}
+                    className="rounded-2xl bg-background/80 p-4 shadow-soft"
+                  >
+                    <h3 className="text-xs font-semibold tracking-tight">
+                      {feature.title}
+                    </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {feature.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -568,34 +693,64 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* CTA band */}
-      <section className="mx-auto w-full max-w-6xl px-6 pb-24">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent-a via-brand/80 to-accent-b text-background shadow-soft">
-          <div className="flex flex-col items-center gap-6 px-6 py-20 text-center">
-            <h2 className="text-2xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-              Ready to level up your game?
+      {/* Closing CTA — dark card */}
+      <section className="mx-auto w-full max-w-6xl px-6 pb-6">
+        <div className="dark relative overflow-hidden rounded-3xl bg-background shadow-soft">
+          <div className="flex flex-col items-center gap-5 px-6 py-20 text-center sm:py-24">
+            <span className="text-xs font-semibold tracking-widest text-brand uppercase">
+              Ready when you are
+            </span>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-5xl">
+              Stop guessing. Start improving.
             </h2>
-            <p className="max-w-md text-background/85">
-              Get a position-specific breakdown of your next piece of coach
-              feedback in under a minute — or bring your whole team along.
+            <p className="max-w-md text-foreground/70">
+              Paste in your next piece of coach feedback, or bring your whole
+              roster along. Free to start, no credit card required.
             </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <Link
-                href="/demo"
-                className="rounded-full bg-background px-8 py-3 text-sm font-semibold text-foreground shadow-soft transition-transform hover:scale-105"
-              >
-                Start with the Demo
-              </Link>
+            <div className="mt-2 flex flex-wrap justify-center gap-3">
               <Link
                 href="/signup"
-                className="rounded-full border border-background/60 px-8 py-3 text-sm font-semibold text-background shadow-soft transition-colors hover:bg-background/10"
+                className="rounded-full bg-foreground px-8 py-3 text-sm font-semibold text-background shadow-soft transition-transform hover:scale-105"
               >
-                Sign Up as a Coach
+                Create Account
+              </Link>
+              <Link
+                href="/login"
+                className="rounded-full border border-border px-8 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+              >
+                Sign In
               </Link>
             </div>
           </div>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="mx-auto w-full max-w-6xl px-6 pb-16">
+        <div className="flex flex-col items-center gap-4 border-t border-border/60 pt-8 text-center sm:flex-row sm:justify-between sm:text-left">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-sm font-semibold tracking-tight"
+          >
+            <LogoMark className="h-6 w-6" />
+            Athlete Helper
+          </Link>
+          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+            {FOOTER_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="transition-colors hover:text-foreground"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} Athlete Helper
+          </p>
+        </div>
+      </footer>
     </main>
   );
 }
