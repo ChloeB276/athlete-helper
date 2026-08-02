@@ -10,7 +10,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Athlete Helper",
-  description: "Built with create-lumos-app",
+  description:
+    "Turn your coach's feedback into an instant, position-specific soccer drill. Built for athletes and coaches.",
 };
 
 export default async function RootLayout({
