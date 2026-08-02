@@ -4,6 +4,8 @@ import { drillQuotaKey, drillQuotaWindow } from "~/lib/quota";
 import { checkRateLimit, getClientIp, peekRateLimit } from "~/lib/rate-limit";
 import { createClient } from "~/lib/supabase/server";
 
+export const maxDuration = 60;
+
 const ANONYMOUS_RATE_LIMIT = { windowSeconds: 60 * 60, maxRequests: 3 };
 
 interface TrainingContext {

@@ -67,48 +67,25 @@ function describeAudience(position: string | null): string {
     : "a player";
 }
 
-const relevanceSchema = z.object({
-  rankedIndices: z
-    .array(z.number())
-    .describe(
-      "0-based indices of candidates that genuinely and specifically address the exact coaching need, best match first. Leave out any video that's only generically or loosely related. An empty array is correct if none of them genuinely fit.",
-    ),
-});
-
-async function filterRelevantVideos(
-  results: VideoResult[],
-  position: string | null,
-  feedback: string,
-  trainingContext: DrillGenerationTrainingContext | null,
-): Promise<VideoResult[]> {
-  if (results.length === 0) return [];
-
-  try {
-    const { object } = await generateObject({
-      model: chatModel,
-      schema: relevanceSchema,
-      system: `You are screening candidate soccer drill videos for a strict fit. Given a list of YouTube videos, decide which ones genuinely and specifically address this exact coaching need: "${feedback}", for ${describeAudience(position)}.${equipmentConstraint(trainingContext)} Be strict: a video about general passing or technique that doesn't specifically address this need should be excluded entirely, not just ranked lower. Same for a video that requires equipment the player doesn't have.`,
-      prompt: results
-        .map(
-          (r, i) =>
-            `${i}. "${r.title}"${r.highlights?.length ? ` - ${r.highlights.join(" ").slice(0, 500)}` : ""}`,
-        )
-        .join("\n"),
-    });
-
-    return object.rankedIndices
-      .map((i) => results[i])
-      .filter((r): r is VideoResult => r !== undefined);
-  } catch (error) {
-    // A relevance-screening hiccup (schema validation, transient rate limit)
-    // shouldn't take down the whole request — fall back to the unfiltered
-    // candidates for this tier rather than throwing.
-    console.error(
-      "filterRelevantVideos failed, using unfiltered results",
-      error,
-    );
-    return results;
+/**
+ * Parses a JSON array of 0-based indices from the model's final text
+ * response. Falls back to every candidate (in original order) if the text
+ * can't be parsed — a screening hiccup should degrade to "unfiltered"
+ * rather than to "nothing."
+ */
+function parseRankedIndices(text: string, resultCount: number): number[] {
+  const match = text.match(/\[[\d,\s]*\]/);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0]);
+      if (Array.isArray(parsed) && parsed.every((n) => typeof n === "number")) {
+        return parsed;
+      }
+    } catch {
+      // fall through to the unfiltered fallback below
+    }
   }
+  return Array.from({ length: resultCount }, (_, i) => i);
 }
 
 async function searchDrillVideos(
@@ -120,28 +97,40 @@ async function searchDrillVideos(
   const contextClause = trainingContext
     ? ` The player is ${describeTrainingContext(trainingContext)}.`
     : "";
-  const { toolResults } = await generateText({
-    model: chatModel,
-    tools: {
-      exa_search: gateway.tools.exaSearch({
-        includeDomains: ["youtube.com"],
-        numResults: 5,
-      }),
-    },
-    toolChoice: "required",
-    prompt: `Find real YouTube videos of a ${difficulty.toLowerCase()}-difficulty soccer drill that helps with this exact coaching need: "${feedback}", for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize videos whose title or content specifically addresses "${feedback}" over generic technique or passing videos — reject a well-produced video if it doesn't actually match this need or violates the equipment constraint above. Search for specific, well-matched drill videos, not general highlight reels.`,
-  });
 
-  const output = toolResults?.[0]?.output as
-    | { results?: VideoResult[] }
-    | undefined;
-  const filtered = await filterRelevantVideos(
-    output?.results ?? [],
-    position,
-    feedback,
-    trainingContext,
-  );
-  return { difficulty, results: filtered };
+  try {
+    const { toolResults, text } = await generateText({
+      model: chatModel,
+      tools: {
+        exa_search: gateway.tools.exaSearch({
+          includeDomains: ["youtube.com"],
+          numResults: 5,
+        }),
+      },
+      toolChoice: "required",
+      prompt: `Find real YouTube videos of a ${difficulty.toLowerCase()}-difficulty soccer drill that helps with this exact coaching need: "${feedback}", for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize videos whose title or content specifically addresses "${feedback}" over generic technique or passing videos — reject a well-produced video if it doesn't actually match this need or violates the equipment constraint above. Search for specific, well-matched drill videos, not general highlight reels.
+
+After searching, respond with ONLY a JSON array of the 0-based indices of the results that genuinely and specifically match this exact need, best match first (e.g. "[2, 0]"). Leave out any result that's only generically or loosely related, or that needs equipment the player doesn't have. An empty array ("[]") is correct if none genuinely fit. No other text.`,
+    });
+
+    const output = toolResults?.[0]?.output as
+      | { results?: VideoResult[] }
+      | undefined;
+    const results = output?.results ?? [];
+    const ranked = parseRankedIndices(text, results.length);
+    return {
+      difficulty,
+      results: ranked
+        .map((i) => results[i])
+        .filter((r): r is VideoResult => r !== undefined),
+    };
+  } catch (error) {
+    // A single tier's search/screening failing (transient rate limit,
+    // timeout) shouldn't take down the whole request — the other tiers can
+    // still succeed, and generateDrillBreakdown only needs at least one.
+    console.error(`searchDrillVideos failed for ${difficulty}`, error);
+    return { difficulty, results: [] };
+  }
 }
 
 /** Greedily assign each tier its highest-ranked video that no earlier tier already claimed. */
@@ -196,7 +185,7 @@ export async function generateDrillBreakdown(
   const contextClause = trainingContext
     ? `, ${describeTrainingContext(trainingContext)}`
     : "";
-  const { object } = await generateObject({
+  const writeupRequest = {
     model: chatModel,
     schema: responseSchema,
     system: `You are a soccer coach. For each difficulty tier below you're given a real YouTube video's title and a transcript excerpt. Write a coaching explanation of the drill shown in that video for ${describeAudience(position)}${contextClause}. Reference the specific technique, reps, and setup described in the transcript — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If the video's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per tier listed, in the order listed.`,
@@ -206,7 +195,13 @@ export async function generateDrillBreakdown(
           `### ${g.difficulty}\nVideo title: "${g.video.title}"\nTranscript excerpt: ${(g.video.highlights ?? []).join(" ").slice(0, 4000)}`,
       )
       .join("\n\n"),
-  });
+  } as const;
+
+  // This is the one remaining single point of failure after all the search
+  // work above, so give it one retry before giving up.
+  const { object } = await generateObject(writeupRequest).catch(() =>
+    generateObject(writeupRequest),
+  );
 
   const drills = object.drills
     .map((drill) => {
