@@ -67,6 +67,39 @@ function describeAudience(position: string | null): string {
     : "a player";
 }
 
+const relevanceSchema = z.object({
+  rankedIndices: z
+    .array(z.number())
+    .describe(
+      "0-based indices of candidates that genuinely and specifically address the exact coaching need, best match first. Leave out any video that's only generically or loosely related. An empty array is correct if none of them genuinely fit.",
+    ),
+});
+
+async function filterRelevantVideos(
+  results: VideoResult[],
+  position: string | null,
+  feedback: string,
+  trainingContext: DrillGenerationTrainingContext | null,
+): Promise<VideoResult[]> {
+  if (results.length === 0) return [];
+
+  const { object } = await generateObject({
+    model: chatModel,
+    schema: relevanceSchema,
+    system: `You are screening candidate soccer drill videos for a strict fit. Given a list of YouTube videos, decide which ones genuinely and specifically address this exact coaching need: "${feedback}", for ${describeAudience(position)}.${equipmentConstraint(trainingContext)} Be strict: a video about general passing or technique that doesn't specifically address this need should be excluded entirely, not just ranked lower. Same for a video that requires equipment the player doesn't have.`,
+    prompt: results
+      .map(
+        (r, i) =>
+          `${i}. "${r.title}"${r.highlights?.length ? ` - ${r.highlights.join(" ").slice(0, 500)}` : ""}`,
+      )
+      .join("\n"),
+  });
+
+  return object.rankedIndices
+    .map((i) => results[i])
+    .filter((r): r is VideoResult => r !== undefined);
+}
+
 async function searchDrillVideos(
   difficulty: Difficulty,
   position: string | null,
@@ -91,7 +124,13 @@ async function searchDrillVideos(
   const output = toolResults?.[0]?.output as
     | { results?: VideoResult[] }
     | undefined;
-  return { difficulty, results: output?.results ?? [] };
+  const filtered = await filterRelevantVideos(
+    output?.results ?? [],
+    position,
+    feedback,
+    trainingContext,
+  );
+  return { difficulty, results: filtered };
 }
 
 /** Greedily assign each tier its highest-ranked video that no earlier tier already claimed. */
