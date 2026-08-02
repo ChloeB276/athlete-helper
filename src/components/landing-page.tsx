@@ -206,7 +206,6 @@ const FOOTER_LINKS = [
   { href: "/#why", label: "Why" },
   { href: "/#how-it-works", label: "How It Works" },
   { href: "/#coaches", label: "For Coaches" },
-  { href: "/demo", label: "Demo" },
 ];
 
 export function LandingPage() {
@@ -241,16 +240,16 @@ export function LandingPage() {
             </p>
             <div className="flex flex-wrap gap-3 pt-2">
               <Link
-                href="/demo"
+                href="/signup"
                 className="rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition-transform hover:scale-105"
               >
-                Try the Demo
+                Start Now
               </Link>
               <Link
-                href="/signup"
+                href="/#how-it-works"
                 className="rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground shadow-soft transition-colors hover:bg-accent"
               >
-                Start Now
+                See How It Works
               </Link>
             </div>
           </div>
@@ -289,18 +288,12 @@ export function LandingPage() {
               See It In Action
             </span>
             <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">
-              This is the actual app
+              Instant Drills
             </h2>
             <p className="max-w-md text-muted-foreground">
               Type in the feedback your coach gave you. Athlete Helper hands
               back a real drill — keep it, tweak it, or ask for another one.
             </p>
-            <Link
-              href="/demo"
-              className="mt-1 inline-flex rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition-transform hover:scale-105"
-            >
-              Try It Yourself
-            </Link>
           </div>
           <div className="flex flex-col gap-2">
             <span className="font-mono text-xs text-muted-foreground">

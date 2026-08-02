@@ -1,9 +1,5 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { LogoMark } from "~/components/logo-mark";
-import { cn } from "~/lib/utils";
 
 const SECTION_LINKS = [
   { href: "/#why", label: "Why" },
@@ -12,8 +8,6 @@ const SECTION_LINKS = [
 ];
 
 export function Navbar() {
-  const pathname = usePathname();
-
   return (
     <div className="sticky top-4 z-40 mx-auto w-full max-w-3xl px-4">
       <nav className="flex h-14 items-center gap-3 rounded-full border border-border/60 bg-card/90 px-4 shadow-soft backdrop-blur-sm sm:gap-5 sm:px-5">
@@ -35,15 +29,6 @@ export function Navbar() {
             </Link>
           ))}
         </div>
-        <Link
-          href="/demo"
-          className={cn(
-            "shrink-0 text-sm whitespace-nowrap transition-colors hover:text-foreground",
-            pathname === "/demo" ? "text-foreground" : "text-muted-foreground",
-          )}
-        >
-          Demo
-        </Link>
         <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
           <Link
             href="/login"
