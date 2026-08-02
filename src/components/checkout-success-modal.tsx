@@ -66,7 +66,7 @@ export function CheckoutSuccessModal({ plan }: { plan: PlanContext }) {
         <button
           type="button"
           onClick={close}
-          className="mt-6 w-full rounded-full bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition-transform hover:scale-[1.02]"
+          className="mt-6 w-full rounded-full bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition hover:scale-[1.02] hover:bg-brand/90"
         >
           Got it
         </button>

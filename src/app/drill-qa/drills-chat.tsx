@@ -6,6 +6,7 @@ import { DrillCard } from "~/components/drill-card";
 import { QnaHint } from "~/components/qna-hint";
 import { QuotaBadge } from "~/components/quota-badge";
 import { TrainingContextForm } from "~/components/training-context-form";
+import { TypingIndicator } from "~/components/typing-indicator";
 import { VisualsToggle } from "~/components/visuals-toggle";
 import {
   type Chat,
@@ -378,7 +379,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
         <button
           type="button"
           onClick={createChat}
-          className="rounded-full bg-brand px-4 py-2 text-sm font-bold tracking-wide text-brand-foreground uppercase transition-transform hover:scale-[1.02]"
+          className="rounded-full bg-brand px-4 py-2 text-sm font-bold tracking-wide text-brand-foreground uppercase transition hover:scale-[1.02] hover:bg-brand/90"
         >
           + New Chat
         </button>
@@ -577,6 +578,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
                   </div>
                 </div>
               ))}
+              {sending && <TypingIndicator />}
               <div ref={messagesEndRef} />
             </div>
 
@@ -609,7 +611,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
                     type="submit"
                     aria-label="Send"
                     disabled={sending}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition hover:scale-105 hover:bg-brand/90 disabled:opacity-60 disabled:hover:scale-100 disabled:hover:bg-brand"
                   >
                     →
                   </button>
@@ -625,7 +627,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
             <button
               type="button"
               onClick={createChat}
-              className="rounded-full bg-brand px-6 py-3 text-sm font-bold tracking-wide text-brand-foreground uppercase transition-transform hover:scale-105"
+              className="rounded-full bg-brand px-6 py-3 text-sm font-bold tracking-wide text-brand-foreground uppercase transition hover:scale-105 hover:bg-brand/90"
             >
               + New Chat
             </button>

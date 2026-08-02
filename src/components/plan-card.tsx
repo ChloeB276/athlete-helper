@@ -124,7 +124,7 @@ export function PlanCard({
             <form action={createCheckoutSession}>
               <button
                 type="submit"
-                className="w-full rounded-full bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition-transform hover:scale-[1.02]"
+                className="w-full rounded-full bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition hover:scale-[1.02] hover:bg-brand/90"
               >
                 Upgrade — $8/mo
               </button>

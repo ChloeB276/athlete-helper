@@ -64,7 +64,10 @@ export default function LoginPage() {
           <GoogleSignInButton />
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <Link href="/signup" className="font-medium text-foreground">
+            <Link
+              href="/signup"
+              className="font-medium text-foreground transition-colors hover:text-brand"
+            >
               Sign up
             </Link>
           </p>

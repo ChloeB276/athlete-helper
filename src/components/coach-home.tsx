@@ -75,7 +75,7 @@ export async function CoachHome({
         </p>
         <Link
           href="/coach/teams"
-          className="mt-5 inline-flex w-fit rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition-transform hover:scale-105"
+          className="mt-5 inline-flex w-fit rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition hover:scale-105 hover:bg-brand/90"
         >
           {teams && teams.length > 0
             ? "Manage Teams"
@@ -93,7 +93,7 @@ export async function CoachHome({
               <Link
                 key={team.id}
                 href={`/coach/teams/${team.id}`}
-                className="flex flex-col gap-1 rounded-3xl bg-card p-6 shadow-soft transition-transform hover:-translate-y-0.5"
+                className="flex flex-col gap-1 rounded-3xl bg-card p-6 shadow-soft transition hover:-translate-y-0.5 hover:text-brand"
               >
                 <span className="truncate text-sm font-semibold">
                   {team.name}
@@ -154,7 +154,7 @@ export async function CoachHome({
               <Link
                 key={folder.id}
                 href={`/coach/drills?folder=${folder.id}`}
-                className="flex flex-col gap-1 rounded-3xl bg-card p-6 shadow-soft transition-transform hover:-translate-y-0.5"
+                className="flex flex-col gap-1 rounded-3xl bg-card p-6 shadow-soft transition hover:-translate-y-0.5 hover:text-brand"
               >
                 <span className="truncate text-sm font-semibold">
                   {folder.name}

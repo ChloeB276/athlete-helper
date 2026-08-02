@@ -122,7 +122,7 @@ export function TrainingContextForm({
       <button
         type="button"
         onClick={handleSubmit}
-        className="self-start rounded-full bg-brand px-6 py-2 text-sm font-bold tracking-wide text-brand-foreground uppercase transition-transform hover:scale-[1.02]"
+        className="self-start rounded-full bg-brand px-6 py-2 text-sm font-bold tracking-wide text-brand-foreground uppercase transition hover:scale-[1.02] hover:bg-brand/90"
       >
         Continue
       </button>
