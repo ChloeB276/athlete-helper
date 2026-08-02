@@ -103,12 +103,11 @@ async function searchDrillVideos(
       model: chatModel,
       tools: {
         exa_search: gateway.tools.exaSearch({
-          includeDomains: ["youtube.com"],
-          numResults: 5,
+          numResults: 8,
         }),
       },
       toolChoice: "required",
-      prompt: `Find real YouTube videos of a ${difficulty.toLowerCase()}-difficulty soccer drill that helps with this exact coaching need: "${feedback}", for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize videos whose title or content specifically addresses "${feedback}" over generic technique or passing videos — reject a well-produced video if it doesn't actually match this need or violates the equipment constraint above. Search for specific, well-matched drill videos, not general highlight reels.
+      prompt: `Find real coaching resources (YouTube videos, coaching-site articles, or blog posts) for a ${difficulty.toLowerCase()}-difficulty soccer drill that helps with this exact coaching need: "${feedback}", for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize results whose title or content specifically addresses "${feedback}" over generic technique or passing content — reject a well-produced result if it doesn't actually match this need or violates the equipment constraint above. A video is preferable when one fits well, but a specific, well-matched article is better than a loosely-related video. Search for specific, well-matched drills, not general highlight reels or listicles.
 
 After searching, respond with ONLY a JSON array of the 0-based indices of the results that genuinely and specifically match this exact need, best match first (e.g. "[2, 0]"). Leave out any result that's only generically or loosely related, or that needs equipment the player doesn't have. An empty array ("[]") is correct if none genuinely fit. No other text.`,
     });
@@ -192,11 +191,11 @@ export async function generateDrillBreakdown(
   const { object } = await generateObject({
     model: chatModel,
     schema: responseSchema,
-    system: `You are a soccer coach. For each difficulty tier below you're given a real YouTube video's title and a transcript excerpt. Write a coaching explanation of the drill shown in that video for ${describeAudience(position)}${contextClause}. Reference the specific technique, reps, and setup described in the transcript — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If the video's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per tier listed, in the order listed.`,
+    system: `You are a soccer coach. For each difficulty tier below you're given a real source's title and an excerpt (from a video transcript or an article). Write a coaching explanation of the drill described in that source for ${describeAudience(position)}${contextClause}. Reference the specific technique, reps, and setup described in the excerpt — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If the source's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per tier listed, in the order listed.`,
     prompt: grounded
       .map(
         (g) =>
-          `### ${g.difficulty}\nVideo title: "${g.video.title}"\nTranscript excerpt: ${(g.video.highlights ?? []).join(" ").slice(0, 4000)}`,
+          `### ${g.difficulty}\nSource title: "${g.video.title}"\nExcerpt: ${(g.video.highlights ?? []).join(" ").slice(0, 4000)}`,
       )
       .join("\n\n"),
   });
