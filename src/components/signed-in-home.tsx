@@ -101,7 +101,7 @@ export async function SignedInHome({ plan }: { plan: PlanContext }) {
 
         <Link
           href="/drill-qa"
-          className="flex w-fit items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition-transform hover:scale-105"
+          className="flex w-fit items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition hover:scale-105 hover:bg-brand/90"
         >
           + Start New Drill
         </Link>

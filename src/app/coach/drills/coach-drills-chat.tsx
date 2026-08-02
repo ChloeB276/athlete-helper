@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChatRow } from "~/app/drill-qa/drills-chat";
 import { DrillCard } from "~/components/drill-card";
 import { QuotaBadge } from "~/components/quota-badge";
+import { TypingIndicator } from "~/components/typing-indicator";
 import { VisualsToggle } from "~/components/visuals-toggle";
 import {
   type Chat,
@@ -304,7 +305,7 @@ export function CoachDrillsChat({
         <button
           type="button"
           onClick={createChat}
-          className="rounded-full bg-brand px-4 py-2 text-sm font-bold tracking-wide text-brand-foreground uppercase transition-transform hover:scale-[1.02]"
+          className="rounded-full bg-brand px-4 py-2 text-sm font-bold tracking-wide text-brand-foreground uppercase transition hover:scale-[1.02] hover:bg-brand/90"
         >
           + New Chat
         </button>
@@ -495,6 +496,7 @@ export function CoachDrillsChat({
                   </div>
                 </div>
               ))}
+              {sending && <TypingIndicator />}
               <div ref={messagesEndRef} />
             </div>
 
@@ -521,7 +523,7 @@ export function CoachDrillsChat({
                   type="submit"
                   aria-label="Send"
                   disabled={sending}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition hover:scale-105 hover:bg-brand/90 disabled:opacity-60 disabled:hover:scale-100 disabled:hover:bg-brand"
                 >
                   →
                 </button>
@@ -536,7 +538,7 @@ export function CoachDrillsChat({
             <button
               type="button"
               onClick={createChat}
-              className="rounded-full bg-brand px-6 py-3 text-sm font-bold tracking-wide text-brand-foreground uppercase transition-transform hover:scale-105"
+              className="rounded-full bg-brand px-6 py-3 text-sm font-bold tracking-wide text-brand-foreground uppercase transition hover:scale-105 hover:bg-brand/90"
             >
               + New Chat
             </button>

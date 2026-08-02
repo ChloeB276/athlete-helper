@@ -61,7 +61,10 @@ export default async function CoachTeamsPage() {
               key={team.id}
               className="flex flex-col gap-3 rounded-3xl bg-card p-6 shadow-soft transition-transform hover:-translate-y-0.5"
             >
-              <Link href={`/coach/teams/${team.id}`}>
+              <Link
+                href={`/coach/teams/${team.id}`}
+                className="transition-colors hover:text-brand"
+              >
                 <span className="truncate text-sm font-semibold">
                   {team.name}
                 </span>

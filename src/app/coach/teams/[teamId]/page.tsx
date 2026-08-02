@@ -76,7 +76,10 @@ export default async function CoachTeamPage({
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
       <div className="flex flex-col gap-2">
-        <Link href="/coach/teams" className="text-sm text-muted-foreground">
+        <Link
+          href="/coach/teams"
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
           ← All teams
         </Link>
         <RenameTeamForm teamId={team.id} currentName={team.name} />
@@ -104,7 +107,7 @@ export default async function CoachTeamPage({
                   <div className="flex shrink-0 items-center gap-2">
                     <Link
                       href={`/coach/teams/${team.id}/players/${member.player_id}/feedback/new`}
-                      className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition-transform hover:scale-105"
+                      className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition hover:scale-105 hover:bg-brand/90"
                     >
                       Give Feedback
                     </Link>
@@ -151,7 +154,7 @@ export default async function CoachTeamPage({
             <form action={addAttendanceDate.bind(null, team.id)}>
               <button
                 type="submit"
-                className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition-transform hover:scale-105"
+                className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition hover:scale-105 hover:bg-brand/90"
               >
                 + Add Today
               </button>
@@ -217,7 +220,7 @@ export default async function CoachTeamPage({
             </fieldset>
             <button
               type="submit"
-              className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition-transform hover:scale-105"
+              className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition hover:scale-105 hover:bg-brand/90"
             >
               Add dates
             </button>

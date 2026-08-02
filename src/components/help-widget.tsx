@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TypingIndicator } from "~/components/typing-indicator";
 import { HELP_WELCOME } from "~/lib/help-assistant";
 import { cn } from "~/lib/utils";
 
@@ -111,6 +112,7 @@ export function HelpWidget() {
                 </div>
               </div>
             ))}
+            {sending && <TypingIndicator />}
           </div>
           <form
             onSubmit={(e) => {
@@ -130,7 +132,7 @@ export function HelpWidget() {
               type="submit"
               aria-label="Send"
               disabled={sending}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground transition hover:scale-105 hover:bg-brand/90 disabled:opacity-60 disabled:hover:scale-100 disabled:hover:bg-brand"
             >
               →
             </button>
@@ -142,7 +144,7 @@ export function HelpWidget() {
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Close help chat" : "Open help chat"}
         aria-expanded={open}
-        className="flex h-12 w-12 items-center justify-center rounded-full bg-brand text-xl font-bold text-brand-foreground shadow-lg transition-transform hover:scale-105"
+        className="flex h-12 w-12 items-center justify-center rounded-full bg-brand text-xl font-bold text-brand-foreground shadow-lg transition hover:scale-105 hover:bg-brand/90"
       >
         ?
       </button>

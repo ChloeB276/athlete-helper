@@ -241,7 +241,7 @@ export function LandingPage() {
             <div className="flex flex-wrap gap-3 pt-2">
               <Link
                 href="/signup"
-                className="rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition-transform hover:scale-105"
+                className="rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition hover:scale-105 hover:bg-brand/90"
               >
                 Start Now
               </Link>
@@ -604,7 +604,7 @@ export function LandingPage() {
               </p>
               <Link
                 href="/signup"
-                className="mt-1 inline-flex rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition-transform hover:scale-105"
+                className="mt-1 inline-flex rounded-full bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-soft transition hover:scale-105 hover:bg-brand/90"
               >
                 Start Coaching
               </Link>
@@ -703,7 +703,7 @@ export function LandingPage() {
             <div className="mt-2 flex flex-wrap justify-center gap-3">
               <Link
                 href="/signup"
-                className="rounded-full bg-foreground px-8 py-3 text-sm font-semibold text-background shadow-soft transition-transform hover:scale-105"
+                className="rounded-full bg-foreground px-8 py-3 text-sm font-semibold text-background shadow-soft transition hover:scale-105 hover:bg-foreground/90"
               >
                 Create Account
               </Link>

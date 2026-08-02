@@ -33,7 +33,7 @@ export default async function CoachAttendancePage() {
             <Link
               key={team.id}
               href={`/coach/teams/${team.id}#attendance`}
-              className="flex flex-col gap-1 rounded-3xl bg-card p-6 shadow-soft transition-transform hover:-translate-y-0.5"
+              className="flex flex-col gap-1 rounded-3xl bg-card p-6 shadow-soft transition hover:-translate-y-0.5 hover:text-brand"
             >
               <span className="truncate text-sm font-semibold">
                 {team.name}

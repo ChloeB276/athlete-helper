@@ -56,7 +56,10 @@ export default async function PlayerTeamPage({
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
       <div className="flex flex-col gap-2">
-        <Link href="/teams" className="text-sm text-muted-foreground">
+        <Link
+          href="/teams"
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
           ← All teams
         </Link>
         <h1 className="text-3xl font-bold tracking-tight">{teamName}</h1>

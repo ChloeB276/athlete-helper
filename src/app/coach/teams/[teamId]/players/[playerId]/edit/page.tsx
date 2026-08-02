@@ -51,7 +51,7 @@ export default async function EditPlayerProfilePage({
       <div className="flex flex-col gap-2">
         <Link
           href={`/coach/teams/${team.id}`}
-          className="text-sm text-muted-foreground"
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           ← {team.name}
         </Link>

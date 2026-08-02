@@ -56,7 +56,10 @@ export default async function PlayerAttendancePage({
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
       <div className="flex flex-col gap-2">
-        <Link href="/attendance" className="text-sm text-muted-foreground">
+        <Link
+          href="/attendance"
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
           ← All teams
         </Link>
         <h1 className="text-3xl font-bold tracking-tight">{teamName}</h1>
@@ -71,7 +74,7 @@ export default async function PlayerAttendancePage({
             <form action={addOwnAttendanceDate.bind(null, teamId)}>
               <button
                 type="submit"
-                className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition-transform hover:scale-105"
+                className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition hover:scale-105 hover:bg-brand/90"
               >
                 + Add Today
               </button>
