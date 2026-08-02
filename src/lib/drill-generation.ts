@@ -16,6 +16,32 @@ export interface DrillGenerationTrainingContext {
   equipment: string[];
 }
 
+export interface ConversationTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/** How many prior turns to carry into the prompt as context. */
+const MAX_HISTORY_TURNS = 8;
+
+/**
+ * Describes the coaching need for the search prompt. When there's prior
+ * conversation, the latest message might be a follow-up ("can I have more
+ * long passing focused") that only makes sense read against what came
+ * before it, rather than a fresh, standalone request.
+ */
+function describeNeed(feedback: string, history: ConversationTurn[]): string {
+  if (history.length === 0) return `this exact coaching need: "${feedback}"`;
+
+  const transcript = history
+    .slice(-MAX_HISTORY_TURNS)
+    .map(
+      (turn) => `${turn.role === "user" ? "Player" : "Coach"}: ${turn.content}`,
+    )
+    .join("\n");
+  return `the coaching need reflected in this conversation (the latest message may refine, narrow, or build on an earlier request rather than stand alone as its own topic):\n${transcript}\nPlayer (latest): "${feedback}"`;
+}
+
 interface VideoResult {
   url: string;
   title: string;
@@ -102,10 +128,12 @@ async function searchDrillSources(
   position: string | null,
   feedback: string,
   trainingContext: DrillGenerationTrainingContext | null,
+  history: ConversationTurn[],
 ): Promise<VideoResult[]> {
   const contextClause = trainingContext
     ? ` The player is ${describeTrainingContext(trainingContext)}.`
     : "";
+  const need = describeNeed(feedback, history);
 
   try {
     const { toolResults, text } = await generateText({
@@ -116,9 +144,9 @@ async function searchDrillSources(
         }),
       },
       toolChoice: "required",
-      prompt: `Find real coaching resources (YouTube videos, coaching-site articles, or blog posts) for soccer drills that help with this exact coaching need: "${feedback}", for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize results whose title or content specifically addresses "${feedback}" over generic technique or passing content. A video is preferable when one fits well, but a specific, well-matched article is better than a loosely-related video. Search for specific, well-matched drills, not general highlight reels or listicles.
+      prompt: `Find real coaching resources (YouTube videos, coaching-site articles, or blog posts) for soccer drills that help with ${need}, for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize results whose title or content specifically addresses that need over generic technique or passing content. A video is preferable when one fits well, but a specific, well-matched article is better than a loosely-related video. Search for specific, well-matched drills, not general highlight reels or listicles.
 
-After searching, respond with ONLY a JSON array containing every 0-based result index, ranked best match first — don't omit any index. Rank a result that specifically addresses "${feedback}" above one that's only generically related, and always rank a result that needs equipment the player doesn't have below every result that doesn't (e.g. "[2, 0, 1]" for 3 results). Every result must appear exactly once, even weak ones. No other text.`,
+After searching, respond with ONLY a JSON array containing every 0-based result index, ranked best match first — don't omit any index. Rank a result that specifically addresses that need above one that's only generically related, and always rank a result that needs equipment the player doesn't have below every result that doesn't (e.g. "[2, 0, 1]" for 3 results). Every result must appear exactly once, even weak ones. No other text.`,
     });
 
     const output = toolResults?.[0]?.output as
@@ -161,8 +189,14 @@ export async function generateDrillBreakdown(
   feedback: string,
   position: string | null,
   trainingContext: DrillGenerationTrainingContext | null,
+  history: ConversationTurn[] = [],
 ): Promise<DrillGenerationResult | null> {
-  const ranked = await searchDrillSources(position, feedback, trainingContext);
+  const ranked = await searchDrillSources(
+    position,
+    feedback,
+    trainingContext,
+    history,
+  );
   if (ranked.length === 0) return null;
 
   const selected = ranked.slice(0, MAX_DRILLS);

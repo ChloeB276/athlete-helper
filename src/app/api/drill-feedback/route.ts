@@ -1,3 +1,4 @@
+import type { ConversationTurn } from "~/lib/drill-generation";
 import { generateDrillBreakdown } from "~/lib/drill-generation";
 import { getPlanContext } from "~/lib/plan";
 import { drillQuotaKey, drillQuotaWindow } from "~/lib/quota";
@@ -7,18 +8,34 @@ import { createClient } from "~/lib/supabase/server";
 export const maxDuration = 60;
 
 const ANONYMOUS_RATE_LIMIT = { windowSeconds: 60 * 60, maxRequests: 3 };
+const MAX_HISTORY_TURNS = 8;
 
 interface TrainingContext {
   partners: number;
   equipment: string[];
 }
 
+function sanitizeHistory(value: unknown): ConversationTurn[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(
+      (turn): turn is ConversationTurn =>
+        typeof turn === "object" &&
+        turn !== null &&
+        (turn.role === "user" || turn.role === "assistant") &&
+        typeof turn.content === "string",
+    )
+    .slice(-MAX_HISTORY_TURNS);
+}
+
 export async function POST(request: Request) {
-  const { feedback, position, trainingContext } = (await request.json()) as {
-    feedback?: string;
-    position?: string | null;
-    trainingContext?: TrainingContext | null;
-  };
+  const { feedback, position, trainingContext, history } =
+    (await request.json()) as {
+      feedback?: string;
+      position?: string | null;
+      trainingContext?: TrainingContext | null;
+      history?: unknown;
+    };
 
   if (!feedback?.trim()) {
     return Response.json({ error: "feedback is required" }, { status: 400 });
@@ -70,6 +87,7 @@ export async function POST(request: Request) {
       feedback,
       position ?? null,
       trainingContext ?? null,
+      sanitizeHistory(history),
     );
 
     if (!result) {

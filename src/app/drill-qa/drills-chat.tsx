@@ -255,6 +255,10 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
     // TrainingContextForm branch below), so this is always non-null here.
     if (!selected.trainingContext) return;
     const trainingContext = selected.trainingContext;
+    const history = selected.messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
 
     setChats((prev) =>
       prev.map((c) =>
@@ -271,6 +275,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
         trimmed,
         selected.position,
         trainingContext,
+        history,
       );
       assistantMessage = {
         id: crypto.randomUUID(),
