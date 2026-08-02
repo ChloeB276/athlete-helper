@@ -173,11 +173,15 @@ export async function generateDrillBreakdown(
   position: string | null,
   trainingContext: DrillGenerationTrainingContext | null,
 ): Promise<DrillGenerationResult | null> {
-  const searches = await Promise.all(
-    DRILL_DIFFICULTIES.map((difficulty) =>
-      searchDrillVideos(difficulty, position, feedback, trainingContext),
-    ),
-  );
+  // Sequential, not Promise.all: firing all 4 tiers' searches at once bursts
+  // past the AI Gateway's rate limit and the whole request fails.
+  const searches: Array<{ difficulty: Difficulty; results: VideoResult[] }> =
+    [];
+  for (const difficulty of DRILL_DIFFICULTIES) {
+    searches.push(
+      await searchDrillVideos(difficulty, position, feedback, trainingContext),
+    );
+  }
 
   const grounded = assignDistinctVideos(searches);
   if (grounded.length === 0) return null;
@@ -185,7 +189,7 @@ export async function generateDrillBreakdown(
   const contextClause = trainingContext
     ? `, ${describeTrainingContext(trainingContext)}`
     : "";
-  const writeupRequest = {
+  const { object } = await generateObject({
     model: chatModel,
     schema: responseSchema,
     system: `You are a soccer coach. For each difficulty tier below you're given a real YouTube video's title and a transcript excerpt. Write a coaching explanation of the drill shown in that video for ${describeAudience(position)}${contextClause}. Reference the specific technique, reps, and setup described in the transcript — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If the video's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per tier listed, in the order listed.`,
@@ -195,13 +199,7 @@ export async function generateDrillBreakdown(
           `### ${g.difficulty}\nVideo title: "${g.video.title}"\nTranscript excerpt: ${(g.video.highlights ?? []).join(" ").slice(0, 4000)}`,
       )
       .join("\n\n"),
-  } as const;
-
-  // This is the one remaining single point of failure after all the search
-  // work above, so give it one retry before giving up.
-  const { object } = await generateObject(writeupRequest).catch(() =>
-    generateObject(writeupRequest),
-  );
+  });
 
   const drills = object.drills
     .map((drill) => {
