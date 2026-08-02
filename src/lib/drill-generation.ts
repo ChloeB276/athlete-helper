@@ -38,6 +38,9 @@ export interface DrillGenerationResult {
   drills: GeneratedDrill[];
 }
 
+/** How many of the top-ranked sources to turn into drills. */
+const MAX_DRILLS = 5;
+
 function describeTrainingContext(
   context: DrillGenerationTrainingContext,
 ): string {
@@ -88,12 +91,18 @@ function parseRankedIndices(text: string, resultCount: number): number[] {
   return Array.from({ length: resultCount }, (_, i) => i);
 }
 
-async function searchDrillVideos(
-  difficulty: Difficulty,
+/**
+ * One broad search for the coaching need, ranked best-match first. Doesn't
+ * search per difficulty tier — forcing one result per tier was padding out
+ * weak/irrelevant matches just to fill a slot. Ranking never drops a
+ * candidate outright (equipment-violating ones just rank last), so there's
+ * always a fallback instead of a hard failure.
+ */
+async function searchDrillSources(
   position: string | null,
   feedback: string,
   trainingContext: DrillGenerationTrainingContext | null,
-): Promise<{ difficulty: Difficulty; results: VideoResult[] }> {
+): Promise<VideoResult[]> {
   const contextClause = trainingContext
     ? ` The player is ${describeTrainingContext(trainingContext)}.`
     : "";
@@ -103,11 +112,11 @@ async function searchDrillVideos(
       model: chatModel,
       tools: {
         exa_search: gateway.tools.exaSearch({
-          numResults: 8,
+          numResults: 10,
         }),
       },
       toolChoice: "required",
-      prompt: `Find real coaching resources (YouTube videos, coaching-site articles, or blog posts) for a ${difficulty.toLowerCase()}-difficulty soccer drill that helps with this exact coaching need: "${feedback}", for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize results whose title or content specifically addresses "${feedback}" over generic technique or passing content. A video is preferable when one fits well, but a specific, well-matched article is better than a loosely-related video. Search for specific, well-matched drills, not general highlight reels or listicles.
+      prompt: `Find real coaching resources (YouTube videos, coaching-site articles, or blog posts) for soccer drills that help with this exact coaching need: "${feedback}", for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize results whose title or content specifically addresses "${feedback}" over generic technique or passing content. A video is preferable when one fits well, but a specific, well-matched article is better than a loosely-related video. Search for specific, well-matched drills, not general highlight reels or listicles.
 
 After searching, respond with ONLY a JSON array containing every 0-based result index, ranked best match first — don't omit any index. Rank a result that specifically addresses "${feedback}" above one that's only generically related, and always rank a result that needs equipment the player doesn't have below every result that doesn't (e.g. "[2, 0, 1]" for 3 results). Every result must appear exactly once, even weak ones. No other text.`,
     });
@@ -118,39 +127,17 @@ After searching, respond with ONLY a JSON array containing every 0-based result 
     const results = output?.results ?? [];
     const ranked = parseRankedIndices(text, results.length);
     console.log(
-      `[drill-search] ${difficulty}: ${results.length} raw results, ${ranked.length} ranked`,
+      `[drill-search] ${results.length} raw results, ${ranked.length} ranked`,
     );
-    return {
-      difficulty,
-      results: ranked
-        .map((i) => results[i])
-        .filter((r): r is VideoResult => r !== undefined),
-    };
+    return ranked
+      .map((i) => results[i])
+      .filter((r): r is VideoResult => r !== undefined);
   } catch (error) {
-    // A single tier's search/screening failing (transient rate limit,
-    // timeout) shouldn't take down the whole request — the other tiers can
-    // still succeed, and generateDrillBreakdown only needs at least one.
-    console.error(`searchDrillVideos failed for ${difficulty}`, error);
-    return { difficulty, results: [] };
+    // A search/screening failure shouldn't take down the whole request —
+    // the caller treats an empty result the same as "nothing found."
+    console.error("searchDrillSources failed", error);
+    return [];
   }
-}
-
-/** Greedily assign each tier its highest-ranked video that no earlier tier already claimed. */
-function assignDistinctVideos(
-  searches: Array<{ difficulty: Difficulty; results: VideoResult[] }>,
-): Array<{ difficulty: Difficulty; video: VideoResult }> {
-  const claimed = new Set<string>();
-  const assigned: Array<{ difficulty: Difficulty; video: VideoResult }> = [];
-
-  for (const search of searches) {
-    const video = search.results.find((r) => !claimed.has(r.url));
-    if (video) {
-      claimed.add(video.url);
-      assigned.push({ difficulty: search.difficulty, video });
-    }
-  }
-
-  return assigned;
 }
 
 const responseSchema = z.object({
@@ -166,8 +153,8 @@ const responseSchema = z.object({
 });
 
 /**
- * Grounds each difficulty tier in a real YouTube video, then writes a
- * coaching explanation per tier. Returns null if no matching videos were
+ * Grounds a handful of the best-matching sources for the coaching need,
+ * then writes a coaching explanation for each. Returns null if nothing was
  * found at all (caller should surface that as an error).
  */
 export async function generateDrillBreakdown(
@@ -175,18 +162,10 @@ export async function generateDrillBreakdown(
   position: string | null,
   trainingContext: DrillGenerationTrainingContext | null,
 ): Promise<DrillGenerationResult | null> {
-  // Sequential, not Promise.all: firing all 4 tiers' searches at once bursts
-  // past the AI Gateway's rate limit and the whole request fails.
-  const searches: Array<{ difficulty: Difficulty; results: VideoResult[] }> =
-    [];
-  for (const difficulty of DRILL_DIFFICULTIES) {
-    searches.push(
-      await searchDrillVideos(difficulty, position, feedback, trainingContext),
-    );
-  }
+  const ranked = await searchDrillSources(position, feedback, trainingContext);
+  if (ranked.length === 0) return null;
 
-  const grounded = assignDistinctVideos(searches);
-  if (grounded.length === 0) return null;
+  const selected = ranked.slice(0, MAX_DRILLS);
 
   const contextClause = trainingContext
     ? `, ${describeTrainingContext(trainingContext)}`
@@ -194,26 +173,26 @@ export async function generateDrillBreakdown(
   const { object } = await generateObject({
     model: chatModel,
     schema: responseSchema,
-    system: `You are a soccer coach. For each difficulty tier below you're given a real source's title and an excerpt (from a video transcript or an article). Write a coaching explanation of the drill described in that source for ${describeAudience(position)}${contextClause}. Reference the specific technique, reps, and setup described in the excerpt — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If the source's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per tier listed, in the order listed.`,
-    prompt: grounded
+    system: `You are a soccer coach. For each source below you're given a real source's title and an excerpt (from a video transcript or an article). Write a coaching explanation of the drill described in that source for ${describeAudience(position)}${contextClause}, and assign it a difficulty (Beginner, Intermediate, Advanced, or Elite) based on how demanding the drill itself actually is — let the difficulties vary naturally based on each source's content, don't force an even spread across tiers. Reference the specific technique, reps, and setup described in the excerpt — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If a source's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per source listed, in the order listed.`,
+    prompt: selected
       .map(
-        (g) =>
-          `### ${g.difficulty}\nSource title: "${g.video.title}"\nExcerpt: ${(g.video.highlights ?? []).join(" ").slice(0, 4000)}`,
+        (source, i) =>
+          `### Source ${i + 1}\nSource title: "${source.title}"\nExcerpt: ${(source.highlights ?? []).join(" ").slice(0, 4000)}`,
       )
       .join("\n\n"),
   });
 
   const drills = object.drills
-    .map((drill) => {
-      const source = grounded.find((g) => g.difficulty === drill.difficulty);
+    .map((drill, i) => {
+      const source = selected[i];
       if (!source) return null;
       return {
         difficulty: drill.difficulty,
         title: drill.title,
         description: drill.description,
-        sourceTitle: source.video.title,
-        imageUrl: source.video.image ?? null,
-        videoUrl: source.video.url,
+        sourceTitle: source.title,
+        imageUrl: source.image ?? null,
+        videoUrl: source.url,
       };
     })
     .filter((drill): drill is NonNullable<typeof drill> => drill !== null);
