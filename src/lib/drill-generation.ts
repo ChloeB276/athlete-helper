@@ -52,6 +52,15 @@ function describeTrainingContext(
   return `${group}, ${equipment}`;
 }
 
+function equipmentConstraint(
+  context: DrillGenerationTrainingContext | null,
+): string {
+  if (!context) return "";
+  return context.equipment.length > 0
+    ? ` The player can only use this equipment: ${context.equipment.join(", ")} (plus a ball) — do not pick videos that require anything else (no wall, cones, or goal unless listed).`
+    : " The player has no training equipment beyond a ball — do not pick videos that use a wall, cones, a goal, or anything else beyond open space.";
+}
+
 function describeAudience(position: string | null): string {
   return position
     ? `a ${position} focused on ${positionFocus(position)}`
@@ -76,7 +85,7 @@ async function searchDrillVideos(
       }),
     },
     toolChoice: "required",
-    prompt: `Find real YouTube videos of a ${difficulty.toLowerCase()}-difficulty soccer drill that helps with this coaching need: "${feedback}", for ${describeAudience(position)}.${contextClause} Search for specific, well-matched drill videos, not general highlight reels.`,
+    prompt: `Find real YouTube videos of a ${difficulty.toLowerCase()}-difficulty soccer drill that helps with this exact coaching need: "${feedback}", for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize videos whose title or content specifically addresses "${feedback}" over generic technique or passing videos — reject a well-produced video if it doesn't actually match this need or violates the equipment constraint above. Search for specific, well-matched drill videos, not general highlight reels.`,
   });
 
   const output = toolResults?.[0]?.output as
@@ -140,7 +149,7 @@ export async function generateDrillBreakdown(
   const { object } = await generateObject({
     model: chatModel,
     schema: responseSchema,
-    system: `You are a soccer coach. For each difficulty tier below you're given a real YouTube video's title and a transcript excerpt. Write a coaching explanation of the drill shown in that video for ${describeAudience(position)}${contextClause}. Reference the specific technique, reps, and setup described in the transcript — don't invent details that aren't there. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per tier listed, in the order listed.`,
+    system: `You are a soccer coach. For each difficulty tier below you're given a real YouTube video's title and a transcript excerpt. Write a coaching explanation of the drill shown in that video for ${describeAudience(position)}${contextClause}. Reference the specific technique, reps, and setup described in the transcript — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If the video's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per tier listed, in the order listed.`,
     prompt: grounded
       .map(
         (g) =>
