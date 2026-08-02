@@ -83,21 +83,32 @@ async function filterRelevantVideos(
 ): Promise<VideoResult[]> {
   if (results.length === 0) return [];
 
-  const { object } = await generateObject({
-    model: chatModel,
-    schema: relevanceSchema,
-    system: `You are screening candidate soccer drill videos for a strict fit. Given a list of YouTube videos, decide which ones genuinely and specifically address this exact coaching need: "${feedback}", for ${describeAudience(position)}.${equipmentConstraint(trainingContext)} Be strict: a video about general passing or technique that doesn't specifically address this need should be excluded entirely, not just ranked lower. Same for a video that requires equipment the player doesn't have.`,
-    prompt: results
-      .map(
-        (r, i) =>
-          `${i}. "${r.title}"${r.highlights?.length ? ` - ${r.highlights.join(" ").slice(0, 500)}` : ""}`,
-      )
-      .join("\n"),
-  });
+  try {
+    const { object } = await generateObject({
+      model: chatModel,
+      schema: relevanceSchema,
+      system: `You are screening candidate soccer drill videos for a strict fit. Given a list of YouTube videos, decide which ones genuinely and specifically address this exact coaching need: "${feedback}", for ${describeAudience(position)}.${equipmentConstraint(trainingContext)} Be strict: a video about general passing or technique that doesn't specifically address this need should be excluded entirely, not just ranked lower. Same for a video that requires equipment the player doesn't have.`,
+      prompt: results
+        .map(
+          (r, i) =>
+            `${i}. "${r.title}"${r.highlights?.length ? ` - ${r.highlights.join(" ").slice(0, 500)}` : ""}`,
+        )
+        .join("\n"),
+    });
 
-  return object.rankedIndices
-    .map((i) => results[i])
-    .filter((r): r is VideoResult => r !== undefined);
+    return object.rankedIndices
+      .map((i) => results[i])
+      .filter((r): r is VideoResult => r !== undefined);
+  } catch (error) {
+    // A relevance-screening hiccup (schema validation, transient rate limit)
+    // shouldn't take down the whole request — fall back to the unfiltered
+    // candidates for this tier rather than throwing.
+    console.error(
+      "filterRelevantVideos failed, using unfiltered results",
+      error,
+    );
+    return results;
+  }
 }
 
 async function searchDrillVideos(
