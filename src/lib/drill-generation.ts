@@ -185,7 +185,7 @@ async function respondOrSearchDrills(
 
 Write the exa_search query as a short, focused phrase (5-10 words) naming the specific skill and technique keywords — don't just paste the player's full sentence as the query. Identify precisely what skill the player is asking to execute (e.g. striking/hitting a long pass) versus a different, related skill (e.g. receiving or controlling one) and search for THAT skill specifically — if the need is about making/hitting a pass, search for how to strike or execute that pass, not how to receive or first-touch it, unless the player explicitly asked about receiving.
 
-After searching, respond with ONLY a JSON array containing every 0-based result index, ranked best match first — don't omit any index. Rank a result that specifically addresses that need above one that's only generically related, and always rank a result that needs equipment the player doesn't have below every result that doesn't (e.g. "[2, 0, 1]" for 3 results). Every result must appear exactly once, even weak ones. No other text.`;
+After searching, respond with ONLY a JSON array of 0-based result indices, ranked best match first (e.g. "[2, 0]"). Include ONLY results that genuinely address that specific need — omit any result that's just loosely/generically related, addresses a different skill, or needs equipment the player doesn't have. Don't pad the list to hit a target count; a shorter list of real matches beats a longer list with weak filler. If none of the results genuinely fit, respond with an empty array "[]". No other text.`;
 
   const system = isFollowUp
     ? (() => {
