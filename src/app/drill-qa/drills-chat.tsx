@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { DrillCard } from "~/components/drill-card";
+import { CloseIcon, MenuIcon } from "~/components/nav-icons";
 import { QnaHint } from "~/components/qna-hint";
 import { QuotaBadge } from "~/components/quota-badge";
 import { TrainingContextForm } from "~/components/training-context-form";
@@ -56,6 +57,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
   const [input, setInput] = useState("");
   const [showVisuals, setShowVisuals] = useState(false);
   const [sending, setSending] = useState(false);
+  const [showChatList, setShowChatList] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
@@ -412,12 +414,39 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)]">
+    <div className="flex h-[calc(100dvh-3.5rem)] md:h-dvh">
+      {showChatList && (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+          onClick={() => setShowChatList(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="flex w-72 shrink-0 flex-col gap-3 border-r border-border bg-muted/30 p-3">
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 flex w-72 shrink-0 -translate-x-full flex-col gap-3 border-r border-border bg-card p-3 transition-transform md:sticky md:top-0 md:z-auto md:h-dvh md:translate-x-0 md:bg-muted/30",
+          showChatList && "translate-x-0",
+        )}
+      >
+        <div className="flex items-center justify-between md:hidden">
+          <span className="text-sm font-bold tracking-tight">Chats</span>
+          <button
+            type="button"
+            aria-label="Close chat list"
+            onClick={() => setShowChatList(false)}
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent"
+          >
+            <CloseIcon className="h-5 w-5" />
+          </button>
+        </div>
         <button
           type="button"
-          onClick={createChat}
+          onClick={() => {
+            createChat();
+            setShowChatList(false);
+          }}
           className="rounded-full bg-brand px-4 py-2 text-sm font-bold tracking-wide text-brand-foreground uppercase transition hover:scale-[1.02] hover:bg-brand/90"
         >
           + New Chat
@@ -494,7 +523,10 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
                         selected={chat.id === selectedId}
                         editing={editingChatId === chat.id}
                         draftName={draftName}
-                        onSelect={() => setSelectedId(chat.id)}
+                        onSelect={() => {
+                          setSelectedId(chat.id);
+                          setShowChatList(false);
+                        }}
                         onStartRename={() => {
                           setEditingChatId(chat.id);
                           setDraftName(chat.title);
@@ -530,7 +562,10 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
                 selected={chat.id === selectedId}
                 editing={editingChatId === chat.id}
                 draftName={draftName}
-                onSelect={() => setSelectedId(chat.id)}
+                onSelect={() => {
+                  setSelectedId(chat.id);
+                  setShowChatList(false);
+                }}
                 onStartRename={() => {
                   setEditingChatId(chat.id);
                   setDraftName(chat.title);
@@ -549,8 +584,16 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
       <div className="flex min-w-0 flex-1 flex-col">
         {selected ? (
           <>
-            <div className="flex items-center gap-3 border-b border-border px-6 py-4">
-              <h1 className="truncate text-lg font-bold tracking-tight">
+            <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 md:px-6 md:py-4">
+              <button
+                type="button"
+                aria-label="Open chat list"
+                onClick={() => setShowChatList(true)}
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent md:hidden"
+              >
+                <MenuIcon className="h-5 w-5" />
+              </button>
+              <h1 className="min-w-0 flex-1 truncate text-lg font-bold tracking-tight">
                 {selected.title}
               </h1>
               {selected.position && (
@@ -558,7 +601,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
                   {selected.position}
                 </span>
               )}
-              <div className="ml-auto flex items-center gap-3">
+              <div className="flex w-full items-center gap-3 md:ml-auto md:w-auto">
                 <QuotaBadge
                   remaining={quota.remaining}
                   max={quota.max}
@@ -571,7 +614,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
               </div>
             </div>
 
-            <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
+            <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
               {selected.messages.map((message) => {
                 if (
                   message.role === "assistant" &&
@@ -673,6 +716,14 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
           </>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+            <button
+              type="button"
+              aria-label="Open chat list"
+              onClick={() => setShowChatList(true)}
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent md:hidden"
+            >
+              <MenuIcon className="h-5 w-5" />
+            </button>
             <p className="text-sm text-muted-foreground">
               Select a chat or start a new one to get drills from your feedback.
             </p>
