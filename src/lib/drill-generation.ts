@@ -323,12 +323,17 @@ export async function streamChatResponse(
     const contextClause = trainingContext
       ? `, ${describeTrainingContext(trainingContext)}`
       : "";
+    const need = describeNeed(feedback, history);
 
     const { partialObjectStream, object } = streamObject({
       model: chatModel,
       abortSignal: controller.signal,
       schema: responseSchema,
-      system: `You are a soccer coach texting a player, not writing a formal report — warm, natural, conversational phrasing throughout. For each source below you're given a real source's title and an excerpt (from a video transcript or an article). Write a coaching explanation of the drill described in that source for ${describeAudience(position)}${contextClause}, and assign it a difficulty (Beginner, Intermediate, Advanced, or Elite) based on how demanding the drill itself actually is — let the difficulties vary naturally based on each source's content, don't force an even spread across tiers. Reference the specific technique, reps, and setup described in the excerpt — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If a source's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each, and each drill description to 3-4 sentences — cover the setup and execution, don't pad. Write exactly one drill entry per source listed, in the order listed.`,
+      system: `You are a soccer coach texting a player, not writing a formal report — warm, natural, conversational phrasing throughout. The player's coach gave them ${need}, for ${describeAudience(position)}${contextClause}.
+
+Start the intro with a short breakdown of that feedback itself: in plain, simple language (no jargon, explain it like you would to a teenager new to the term), say what the coach's cue actually means in practice for someone playing that position, and why it matters in a game. Only after that breakdown, transition into the drills below.
+
+For each source below you're given a real source's title and an excerpt (from a video transcript or an article). Write a coaching explanation of the drill described in that source, and assign it a difficulty (Beginner, Intermediate, Advanced, or Elite) based on how demanding the drill itself actually is — let the difficulties vary naturally based on each source's content, don't force an even spread across tiers. Reference the specific technique, reps, and setup described in the excerpt — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If a source's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro to 3-5 sentences (covering both the feedback breakdown and the transition), the outro to 2-3 sentences, and each drill description to 3-4 sentences — cover the setup and execution, don't pad. Write exactly one drill entry per source listed, in the order listed.`,
       prompt: selected
         .map(
           (source, i) =>
