@@ -29,57 +29,72 @@ function sanitizeHistory(value: unknown): ConversationTurn[] {
 }
 
 export async function POST(request: Request) {
-  const { feedback, position, trainingContext, history } =
-    (await request.json()) as {
+  let feedback: string;
+  let position: string | null | undefined;
+  let trainingContext: TrainingContext | null | undefined;
+  let history: unknown;
+  let quotaKey: string | null = null;
+  let quotaWindow: { windowSeconds: number; maxRequests: number } | null = null;
+
+  try {
+    const body = (await request.json()) as {
       feedback?: string;
       position?: string | null;
       trainingContext?: TrainingContext | null;
       history?: unknown;
     };
+    position = body.position;
+    trainingContext = body.trainingContext;
+    history = body.history;
 
-  if (!feedback?.trim()) {
-    return Response.json({ error: "feedback is required" }, { status: 400 });
-  }
+    if (!body.feedback?.trim()) {
+      return Response.json({ error: "feedback is required" }, { status: 400 });
+    }
+    feedback = body.feedback;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  let quotaKey: string | null = null;
-  let quotaWindow: { windowSeconds: number; maxRequests: number } | null = null;
+    if (!user) {
+      const allowed = await checkRateLimit(
+        `drill-feedback:${getClientIp(request)}`,
+        ANONYMOUS_RATE_LIMIT,
+      );
+      if (!allowed) {
+        return Response.json(
+          {
+            error:
+              "You've hit the demo's hourly limit. Sign up for unlimited access.",
+          },
+          { status: 429 },
+        );
+      }
+    } else {
+      const plan = await getPlanContext(supabase, user.id);
+      const isCoach = plan.role === "coach";
+      quotaKey = drillQuotaKey(plan, user.id);
+      quotaWindow = drillQuotaWindow(plan);
 
-  if (!user) {
-    const allowed = await checkRateLimit(
-      `drill-feedback:${getClientIp(request)}`,
-      ANONYMOUS_RATE_LIMIT,
+      const allowed = await checkRateLimit(quotaKey, quotaWindow);
+      if (!allowed) {
+        return Response.json(
+          {
+            error: isCoach
+              ? "You've hit your weekly drill-recommendation limit. Upgrade to Athlete Helper Pro for 10/week."
+              : "You've hit your monthly drill-generation limit. Upgrade to Athlete Helper Pro for 30/month.",
+          },
+          { status: 429 },
+        );
+      }
+    }
+  } catch (error) {
+    console.error("drill-feedback pre-stream setup failed", error);
+    return Response.json(
+      { error: "Failed to generate drills" },
+      { status: 500 },
     );
-    if (!allowed) {
-      return Response.json(
-        {
-          error:
-            "You've hit the demo's hourly limit. Sign up for unlimited access.",
-        },
-        { status: 429 },
-      );
-    }
-  } else {
-    const plan = await getPlanContext(supabase, user.id);
-    const isCoach = plan.role === "coach";
-    quotaKey = drillQuotaKey(plan, user.id);
-    quotaWindow = drillQuotaWindow(plan);
-
-    const allowed = await checkRateLimit(quotaKey, quotaWindow);
-    if (!allowed) {
-      return Response.json(
-        {
-          error: isCoach
-            ? "You've hit your weekly drill-recommendation limit. Upgrade to Athlete Helper Pro for 10/week."
-            : "You've hit your monthly drill-generation limit. Upgrade to Athlete Helper Pro for 30/month.",
-        },
-        { status: 429 },
-      );
-    }
   }
 
   const encoder = new TextEncoder();
