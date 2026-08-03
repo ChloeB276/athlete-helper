@@ -1,5 +1,5 @@
-import type { ConversationTurn } from "~/lib/drill-generation";
-import { generateDrillBreakdown } from "~/lib/drill-generation";
+import type { ChatStreamEvent, ConversationTurn } from "~/lib/drill-generation";
+import { streamChatResponse } from "~/lib/drill-generation";
 import { getPlanContext } from "~/lib/plan";
 import { drillQuotaKey, drillQuotaWindow } from "~/lib/quota";
 import { checkRateLimit, getClientIp, peekRateLimit } from "~/lib/rate-limit";
@@ -82,35 +82,47 @@ export async function POST(request: Request) {
     }
   }
 
-  try {
-    const result = await generateDrillBreakdown(
-      feedback,
-      position ?? null,
-      trainingContext ?? null,
-      sanitizeHistory(history),
-    );
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      function send(
+        event:
+          | ChatStreamEvent
+          | { type: "quota"; quota: { remaining: number; max: number } }
+          | { type: "error"; message: string },
+      ) {
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      }
 
-    if (!result) {
-      return Response.json(
-        { error: "Couldn't find any matching drill videos" },
-        { status: 502 },
-      );
-    }
+      try {
+        await streamChatResponse(
+          feedback,
+          position ?? null,
+          trainingContext ?? null,
+          sanitizeHistory(history),
+          send,
+        );
 
-    if (quotaKey && quotaWindow) {
-      const { remaining } = await peekRateLimit(quotaKey, quotaWindow);
-      return Response.json({
-        ...result,
-        quota: { remaining, max: quotaWindow.maxRequests },
-      });
-    }
+        if (quotaKey && quotaWindow) {
+          const { remaining } = await peekRateLimit(quotaKey, quotaWindow);
+          send({
+            type: "quota",
+            quota: { remaining, max: quotaWindow.maxRequests },
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        send({ type: "error", message: "Failed to generate drills" });
+      } finally {
+        controller.close();
+      }
+    },
+  });
 
-    return Response.json(result);
-  } catch (error) {
-    console.error(error);
-    return Response.json(
-      { error: "Failed to generate drills" },
-      { status: 502 },
-    );
-  }
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson",
+      "Cache-Control": "no-cache",
+    },
+  });
 }

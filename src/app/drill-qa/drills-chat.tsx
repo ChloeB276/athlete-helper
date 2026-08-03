@@ -102,6 +102,12 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
 
   const selected = chats.find((c) => c.id === selectedId) ?? null;
   const ungrouped = chats.filter((c) => c.folderId === null);
+  const lastMessage = selected?.messages[selected.messages.length - 1];
+  const showTyping =
+    sending &&
+    (!lastMessage ||
+      lastMessage.role !== "assistant" ||
+      (!lastMessage.content && !lastMessage.drills?.length));
 
   function toggleFolder(id: string) {
     setCollapsedFolders((prev) => {
@@ -260,43 +266,74 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
       content: m.content,
     }));
 
+    const chatId = selected.id;
+    const assistantId = crypto.randomUUID();
+    let assistantMessage: ChatMessage = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+    };
+
+    function updateAssistantMessage(next: ChatMessage) {
+      assistantMessage = next;
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === chatId
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === assistantId ? assistantMessage : m,
+                ),
+              }
+            : c,
+        ),
+      );
+    }
+
     setChats((prev) =>
       prev.map((c) =>
         c.id === selected.id
-          ? { ...c, messages: [...c.messages, userMessage] }
+          ? { ...c, messages: [...c.messages, userMessage, assistantMessage] }
           : c,
       ),
     );
 
     setSending(true);
-    let assistantMessage: ChatMessage;
     try {
       const breakdown = await breakdownFeedback(
         trimmed,
         selected.position,
         trainingContext,
         history,
+        (snapshot) =>
+          updateAssistantMessage({
+            id: assistantId,
+            role: "assistant",
+            content: snapshot.intro,
+            drills: snapshot.drills.length > 0 ? snapshot.drills : undefined,
+            outro: snapshot.outro || undefined,
+          }),
       );
-      assistantMessage = {
-        id: crypto.randomUUID(),
+      updateAssistantMessage({
+        id: assistantId,
         role: "assistant",
         content: breakdown.intro,
         drills: breakdown.drills,
         outro: breakdown.outro,
-      };
+      });
       if (breakdown.quota) {
         setQuota((prev) => ({ ...prev, ...breakdown.quota }));
       }
     } catch (error) {
       console.error(error);
-      assistantMessage = {
-        id: crypto.randomUUID(),
+      updateAssistantMessage({
+        id: assistantId,
         role: "assistant",
         content:
           error instanceof Error
             ? error.message
             : "Sorry, I couldn't generate drills for that just now. Please try again.",
-      };
+      });
     } finally {
       setSending(false);
     }
@@ -307,14 +344,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
 
     setChats((prev) =>
       prev.map((c) =>
-        c.id === selected.id
-          ? {
-              ...c,
-              title: nextTitle,
-              messages: [...c.messages, assistantMessage],
-              updatedAt,
-            }
-          : c,
+        c.id === selected.id ? { ...c, title: nextTitle, updatedAt } : c,
       ),
     );
 
@@ -538,52 +568,65 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
             </div>
 
             <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
-              {selected.messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex",
-                    message.role === "user" ? "justify-end" : "justify-start",
-                  )}
-                >
+              {selected.messages.map((message) => {
+                if (
+                  message.role === "assistant" &&
+                  !message.content &&
+                  !message.drills?.length
+                ) {
+                  return null;
+                }
+                return (
                   <div
+                    key={message.id}
                     className={cn(
-                      "max-w-[75%] text-sm leading-relaxed",
-                      message.role === "user"
-                        ? "rounded-2xl bg-muted px-4 py-2.5 text-foreground"
-                        : "px-1 text-foreground",
+                      "flex",
+                      message.role === "user" ? "justify-end" : "justify-start",
                     )}
                   >
-                    <p className="whitespace-pre-line">{message.content}</p>
-                    {message.drills && message.drills.length > 0 && (
-                      <div className="mt-3 space-y-3">
-                        {message.drills.map((drill) => (
-                          <DrillCard
-                            key={drill.id}
-                            drill={drill}
-                            showVisuals={showVisuals}
-                            onToggleKeep={() =>
-                              toggleKeepDrill(selected.id, message.id, drill.id)
-                            }
-                            onDelete={() =>
-                              deleteDrill(selected.id, message.id, drill.id)
-                            }
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {message.outro && (
-                      <p className="mt-3 whitespace-pre-line">
-                        {message.outro}
-                      </p>
-                    )}
-                    {message.role === "assistant" && (
-                      <QnaHint onAsk={() => inputRef.current?.focus()} />
-                    )}
+                    <div
+                      className={cn(
+                        "max-w-[75%] text-sm leading-relaxed",
+                        message.role === "user"
+                          ? "rounded-2xl bg-muted px-4 py-2.5 text-foreground"
+                          : "px-1 text-foreground",
+                      )}
+                    >
+                      <p className="whitespace-pre-line">{message.content}</p>
+                      {message.drills && message.drills.length > 0 && (
+                        <div className="mt-3 space-y-3">
+                          {message.drills.map((drill) => (
+                            <DrillCard
+                              key={drill.id}
+                              drill={drill}
+                              showVisuals={showVisuals}
+                              onToggleKeep={() =>
+                                toggleKeepDrill(
+                                  selected.id,
+                                  message.id,
+                                  drill.id,
+                                )
+                              }
+                              onDelete={() =>
+                                deleteDrill(selected.id, message.id, drill.id)
+                              }
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {message.outro && (
+                        <p className="mt-3 whitespace-pre-line">
+                          {message.outro}
+                        </p>
+                      )}
+                      {message.role === "assistant" && (
+                        <QnaHint onAsk={() => inputRef.current?.focus()} />
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-              {sending && <TypingIndicator />}
+                );
+              })}
+              {showTyping && <TypingIndicator />}
               <div ref={messagesEndRef} />
             </div>
 
