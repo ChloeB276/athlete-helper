@@ -1,15 +1,7 @@
 import { generateText, streamObject, streamText } from "ai";
 import { z } from "zod";
-import { chatModel, fastModel, gateway } from "~/lib/ai";
+import { chatModel, gateway } from "~/lib/ai";
 import { positionFocus } from "~/lib/soccer-feedback";
-
-/**
- * Overall time budget for the whole chat pipeline (intent gate + search +
- * drill writeup combined). Aborting once this elapses keeps the response
- * within the ~30s the user actually waits, instead of hanging until the
- * platform's own function timeout kills the connection with no message.
- */
-const PIPELINE_TIMEOUT_MS = 25_000;
 
 export const DRILL_DIFFICULTIES = [
   "Beginner",
@@ -137,7 +129,6 @@ async function searchDrillSources(
   feedback: string,
   trainingContext: DrillGenerationTrainingContext | null,
   history: ConversationTurn[],
-  signal: AbortSignal,
 ): Promise<VideoResult[]> {
   const contextClause = trainingContext
     ? ` The player is ${describeTrainingContext(trainingContext)}.`
@@ -146,8 +137,7 @@ async function searchDrillSources(
 
   try {
     const { toolResults, text } = await generateText({
-      model: fastModel,
-      abortSignal: signal,
+      model: chatModel,
       tools: {
         exa_search: gateway.tools.exaSearch({
           numResults: 10,
@@ -195,8 +185,7 @@ const responseSchema = z.object({
 export type ChatStreamEvent =
   | { type: "answer"; text: string }
   | { type: "drills"; partial: Partial<DrillGenerationResult> }
-  | { type: "not-found" }
-  | { type: "error"; message: string };
+  | { type: "not-found" };
 
 /**
  * Decides whether the latest message is asking for new/different/more
@@ -213,7 +202,6 @@ async function streamRespondOrRequestDrills(
   position: string | null,
   trainingContext: DrillGenerationTrainingContext | null,
   onAnswerDelta: (cumulativeText: string) => void,
-  signal: AbortSignal,
 ): Promise<{ needsDrills: boolean }> {
   const transcript = history
     .slice(-MAX_HISTORY_TURNS)
@@ -228,8 +216,7 @@ async function streamRespondOrRequestDrills(
 
   try {
     const { textStream } = streamText({
-      model: fastModel,
-      abortSignal: signal,
+      model: chatModel,
       system: `You are a soccer coaching assistant chatting with ${describeAudience(position)}${contextClause}, continuing a conversation about drills you've already recommended. Talk like a friendly coach texting back, not a formal report — warm, natural, conversational phrasing. Conversation so far:\n${transcript}\n\nDecide how to respond to the player's latest message. If they're asking for new, additional, more specific, or different drills (e.g. "give me more", "focus more on X", "these don't work, find better ones", "something harder"), respond with EXACTLY the text ${MARKER} and nothing else. Otherwise — a question, clarification, comment, or anything that doesn't require finding new drill videos — answer directly and conversationally in 1-4 sentences, referencing the specific drills already discussed where relevant. Don't invent drills or describe videos that weren't already discussed.`,
       prompt: feedback,
     });
@@ -306,73 +293,49 @@ export async function streamChatResponse(
   history: ConversationTurn[],
   onEvent: (event: ChatStreamEvent) => void,
 ): Promise<void> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), PIPELINE_TIMEOUT_MS);
-
-  try {
-    if (history.length > 0) {
-      const { needsDrills } = await streamRespondOrRequestDrills(
-        feedback,
-        history,
-        position,
-        trainingContext,
-        (text) => onEvent({ type: "answer", text }),
-        controller.signal,
-      );
-      if (!needsDrills) return;
-    }
-
-    const ranked = await searchDrillSources(
-      position,
+  if (history.length > 0) {
+    const { needsDrills } = await streamRespondOrRequestDrills(
       feedback,
-      trainingContext,
       history,
-      controller.signal,
+      position,
+      trainingContext,
+      (text) => onEvent({ type: "answer", text }),
     );
-    if (ranked.length === 0) {
-      onEvent({ type: "not-found" });
-      return;
-    }
-
-    const selected = ranked.slice(0, MAX_DRILLS);
-    const contextClause = trainingContext
-      ? `, ${describeTrainingContext(trainingContext)}`
-      : "";
-
-    const { partialObjectStream, object } = streamObject({
-      model: chatModel,
-      abortSignal: controller.signal,
-      schema: responseSchema,
-      system: `You are a soccer coach texting a player, not writing a formal report — warm, natural, conversational phrasing throughout. For each source below you're given a real source's title and an excerpt (from a video transcript or an article). Write a coaching explanation of the drill described in that source for ${describeAudience(position)}${contextClause}, and assign it a difficulty (Beginner, Intermediate, Advanced, or Elite) based on how demanding the drill itself actually is — let the difficulties vary naturally based on each source's content, don't force an even spread across tiers. Reference the specific technique, reps, and setup described in the excerpt — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If a source's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per source listed, in the order listed.`,
-      prompt: selected
-        .map(
-          (source, i) =>
-            `### Source ${i + 1}\nSource title: "${source.title}"\nExcerpt: ${(source.highlights ?? []).join(" ").slice(0, 4000)}`,
-        )
-        .join("\n\n"),
-    });
-
-    for await (const partial of partialObjectStream) {
-      onEvent({
-        type: "drills",
-        partial: mapPartialToResult(partial, selected),
-      });
-    }
-
-    const final = await object;
-    onEvent({ type: "drills", partial: mapPartialToResult(final, selected) });
-  } catch (error) {
-    if (controller.signal.aborted) {
-      console.error("streamChatResponse timed out", error);
-      onEvent({
-        type: "error",
-        message:
-          "That's taking longer than expected — please try again, or try a shorter request.",
-      });
-      return;
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
+    if (!needsDrills) return;
   }
+
+  const ranked = await searchDrillSources(
+    position,
+    feedback,
+    trainingContext,
+    history,
+  );
+  if (ranked.length === 0) {
+    onEvent({ type: "not-found" });
+    return;
+  }
+
+  const selected = ranked.slice(0, MAX_DRILLS);
+  const contextClause = trainingContext
+    ? `, ${describeTrainingContext(trainingContext)}`
+    : "";
+
+  const { partialObjectStream, object } = streamObject({
+    model: chatModel,
+    schema: responseSchema,
+    system: `You are a soccer coach texting a player, not writing a formal report — warm, natural, conversational phrasing throughout. For each source below you're given a real source's title and an excerpt (from a video transcript or an article). Write a coaching explanation of the drill described in that source for ${describeAudience(position)}${contextClause}, and assign it a difficulty (Beginner, Intermediate, Advanced, or Elite) based on how demanding the drill itself actually is — let the difficulties vary naturally based on each source's content, don't force an even spread across tiers. Reference the specific technique, reps, and setup described in the excerpt — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If a source's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per source listed, in the order listed.`,
+    prompt: selected
+      .map(
+        (source, i) =>
+          `### Source ${i + 1}\nSource title: "${source.title}"\nExcerpt: ${(source.highlights ?? []).join(" ").slice(0, 4000)}`,
+      )
+      .join("\n\n"),
+  });
+
+  for await (const partial of partialObjectStream) {
+    onEvent({ type: "drills", partial: mapPartialToResult(partial, selected) });
+  }
+
+  const final = await object;
+  onEvent({ type: "drills", partial: mapPartialToResult(final, selected) });
 }
