@@ -15,6 +15,33 @@ function formatDate(date: string) {
   return `${Number(month)}/${Number(day)}`;
 }
 
+function formatRelativeDate(iso: string) {
+  const date = new Date(iso);
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function DrillRow({
+  chat,
+}: {
+  chat: { id: string; title: string; drillCount: number; updatedAt: string };
+}) {
+  return (
+    <Link
+      href={`/drill-qa?chat=${chat.id}`}
+      className="flex items-center justify-between gap-3 rounded-2xl px-3 py-2 text-sm transition-colors hover:bg-muted"
+    >
+      <span className="truncate font-medium">{chat.title}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">
+        {chat.drillCount > 0
+          ? `${chat.drillCount} drill${chat.drillCount === 1 ? "" : "s"}`
+          : "No drills yet"}
+        {" · "}
+        {formatRelativeDate(chat.updatedAt)}
+      </span>
+    </Link>
+  );
+}
+
 function SummaryRow({
   label,
   value,
@@ -47,6 +74,7 @@ export async function SignedInHome({ plan }: { plan: PlanContext }) {
   if (!user) redirect("/login");
 
   const data = await getSessionPlanData(user.id);
+  const ungroupedChats = data.chats.filter((chat) => chat.folderId === null);
   const coachCue = data.coachCue
     ? data.coachCue.length > 100
       ? `${data.coachCue.slice(0, 100)}…`
@@ -112,10 +140,63 @@ export async function SignedInHome({ plan }: { plan: PlanContext }) {
             <TodayChecklist drills={data.plan.drills} />
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 rounded-3xl bg-card p-12 text-center shadow-soft">
-            <p className="text-muted-foreground">
-              You haven't generated a plan yet. Start a new drill to get going.
-            </p>
+          <div className="flex flex-col gap-4">
+            <div className="rounded-3xl bg-card p-6 shadow-soft">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold">Drills</h2>
+                <Link
+                  href="/drill-qa"
+                  className="text-xs font-medium text-brand hover:underline"
+                >
+                  View all →
+                </Link>
+              </div>
+              {ungroupedChats.length > 0 ? (
+                <div className="flex flex-col gap-1">
+                  {ungroupedChats.slice(0, 5).map((chat) => (
+                    <DrillRow key={chat.id} chat={chat} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  You haven't generated any drills yet. Start a new drill to get
+                  going.
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-3xl bg-card p-6 shadow-soft">
+              <h2 className="mb-3 text-sm font-semibold">Folders</h2>
+              {data.folders.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {data.folders.map((folder) => {
+                    const folderChats = data.chats.filter(
+                      (chat) => chat.folderId === folder.id,
+                    );
+                    return (
+                      <div key={folder.id}>
+                        <p className="mb-1 px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                          {folder.name}
+                        </p>
+                        {folderChats.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            {folderChats.map((chat) => (
+                              <DrillRow key={chat.id} chat={chat} />
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="px-3 text-xs text-muted-foreground/70">
+                            Empty
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No folders yet.</p>
+              )}
+            </div>
           </div>
         )}
       </div>
