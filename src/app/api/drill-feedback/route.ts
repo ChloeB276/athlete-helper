@@ -88,8 +88,7 @@ export async function POST(request: Request) {
       function send(
         event:
           | ChatStreamEvent
-          | { type: "quota"; quota: { remaining: number; max: number } }
-          | { type: "error"; message: string },
+          | { type: "quota"; quota: { remaining: number; max: number } },
       ) {
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       }
