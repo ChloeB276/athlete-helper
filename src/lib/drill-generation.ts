@@ -183,6 +183,8 @@ async function respondOrSearchDrills(
     : "";
   const searchInstructions = `call the exa_search tool to find real coaching resources (YouTube videos, coaching-site articles, or blog posts) for soccer drills that help with ${need}, for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize results whose title or content specifically addresses that need over generic technique or passing content. A video is preferable when one fits well, but a specific, well-matched article is better than a loosely-related video. Search for specific, well-matched drills, not general highlight reels or listicles.
 
+Write the exa_search query as a short, focused phrase (5-10 words) naming the specific skill and technique keywords — don't just paste the player's full sentence as the query. Identify precisely what skill the player is asking to execute (e.g. striking/hitting a long pass) versus a different, related skill (e.g. receiving or controlling one) and search for THAT skill specifically — if the need is about making/hitting a pass, search for how to strike or execute that pass, not how to receive or first-touch it, unless the player explicitly asked about receiving.
+
 After searching, respond with ONLY a JSON array containing every 0-based result index, ranked best match first — don't omit any index. Rank a result that specifically addresses that need above one that's only generically related, and always rank a result that needs equipment the player doesn't have below every result that doesn't (e.g. "[2, 0, 1]" for 3 results). Every result must appear exactly once, even weak ones. No other text.`;
 
   const system = isFollowUp
@@ -218,6 +220,7 @@ After searching, respond with ONLY a JSON array containing every 0-based result 
     for await (const part of fullStream) {
       if (part.type === "tool-call") {
         toolCalled = true;
+        console.log("[drill-search] query:", JSON.stringify(part.input));
       } else if (part.type === "tool-result") {
         const output = part.output as { results?: VideoResult[] } | undefined;
         results = output?.results ?? [];
