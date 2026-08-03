@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AppSidebar } from "~/components/app-sidebar";
@@ -56,6 +57,7 @@ export default async function RootLayout({
             </>
           )}
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
