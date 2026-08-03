@@ -326,13 +326,17 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
       }
     } catch (error) {
       console.error(error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Sorry, I couldn't generate drills for that just now. Please try again.";
+      const hasPartialContent =
+        assistantMessage.content || (assistantMessage.drills?.length ?? 0) > 0;
       updateAssistantMessage({
-        id: assistantId,
-        role: "assistant",
-        content:
-          error instanceof Error
-            ? error.message
-            : "Sorry, I couldn't generate drills for that just now. Please try again.",
+        ...assistantMessage,
+        content: hasPartialContent
+          ? `${assistantMessage.content}\n\n${message}`.trim()
+          : message,
       });
     } finally {
       setSending(false);

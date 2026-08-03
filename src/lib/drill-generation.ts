@@ -5,11 +5,13 @@ import { positionFocus } from "~/lib/soccer-feedback";
 
 /**
  * Overall time budget for the whole chat pipeline (intent gate + search +
- * drill writeup combined). Aborting once this elapses keeps the response
- * within the ~30s the user actually waits, instead of hanging until the
- * platform's own function timeout kills the connection with no message.
+ * drill writeup combined). A real web search plus a quality multi-drill
+ * writeup can legitimately take 30s+, so this is a safety net against a
+ * genuine hang, not a target latency — set it too low and it aborts normal
+ * requests before they finish. Stays comfortably under the route's own
+ * `maxDuration` so we always get a chance to send a clean error first.
  */
-const PIPELINE_TIMEOUT_MS = 25_000;
+const PIPELINE_TIMEOUT_MS = 45_000;
 
 export const DRILL_DIFFICULTIES = [
   "Beginner",
@@ -323,11 +325,11 @@ export async function streamChatResponse(
       model: chatModel,
       abortSignal: controller.signal,
       schema: responseSchema,
-      system: `You are a soccer coach texting a player, not writing a formal report — warm, natural, conversational phrasing throughout. For each source below you're given a real source's title and an excerpt (from a video transcript or an article). Write a coaching explanation of the drill described in that source for ${describeAudience(position)}${contextClause}, and assign it a difficulty (Beginner, Intermediate, Advanced, or Elite) based on how demanding the drill itself actually is — let the difficulties vary naturally based on each source's content, don't force an even spread across tiers. Reference the specific technique, reps, and setup described in the excerpt — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If a source's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each. Write exactly one drill entry per source listed, in the order listed.`,
+      system: `You are a soccer coach texting a player, not writing a formal report — warm, natural, conversational phrasing throughout. For each source below you're given a real source's title and an excerpt (from a video transcript or an article). Write a coaching explanation of the drill described in that source for ${describeAudience(position)}${contextClause}, and assign it a difficulty (Beginner, Intermediate, Advanced, or Elite) based on how demanding the drill itself actually is — let the difficulties vary naturally based on each source's content, don't force an even spread across tiers. Reference the specific technique, reps, and setup described in the excerpt — don't invent details that aren't there.${equipmentConstraint(trainingContext)} If a source's setup relies on equipment the player doesn't have, adapt the explanation to the closest equivalent the player can actually do rather than describing the unavailable setup. Keep the intro and outro to 2-3 sentences each, and each drill description to 3-4 sentences — cover the setup and execution, don't pad. Write exactly one drill entry per source listed, in the order listed.`,
       prompt: selected
         .map(
           (source, i) =>
-            `### Source ${i + 1}\nSource title: "${source.title}"\nExcerpt: ${(source.highlights ?? []).join(" ").slice(0, 4000)}`,
+            `### Source ${i + 1}\nSource title: "${source.title}"\nExcerpt: ${(source.highlights ?? []).join(" ").slice(0, 2000)}`,
         )
         .join("\n\n"),
     });
