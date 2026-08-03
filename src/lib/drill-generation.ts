@@ -1,4 +1,4 @@
-import { streamObject, streamText } from "ai";
+import { generateText, streamObject, streamText } from "ai";
 import { z } from "zod";
 import { chatModel, fastModel, gateway } from "~/lib/ai";
 import { positionFocus } from "~/lib/soccer-feedback";
@@ -72,12 +72,8 @@ export interface DrillGenerationResult {
   drills: GeneratedDrill[];
 }
 
-/**
- * How many of the top-ranked sources to turn into drills. Kept small
- * because the final writeup call generates all of these in one go, and
- * each additional drill directly extends how long that call takes.
- */
-const MAX_DRILLS = 4;
+/** How many of the top-ranked sources to turn into drills. */
+const MAX_DRILLS = 5;
 
 function describeTrainingContext(
   context: DrillGenerationTrainingContext,
@@ -129,6 +125,59 @@ function parseRankedIndices(text: string, resultCount: number): number[] {
   return Array.from({ length: resultCount }, (_, i) => i);
 }
 
+/**
+ * One broad search for the coaching need, ranked best-match first. Doesn't
+ * search per difficulty tier — forcing one result per tier was padding out
+ * weak/irrelevant matches just to fill a slot. Ranking never drops a
+ * candidate outright (equipment-violating ones just rank last), so there's
+ * always a fallback instead of a hard failure.
+ */
+async function searchDrillSources(
+  position: string | null,
+  feedback: string,
+  trainingContext: DrillGenerationTrainingContext | null,
+  history: ConversationTurn[],
+  signal: AbortSignal,
+): Promise<VideoResult[]> {
+  const contextClause = trainingContext
+    ? ` The player is ${describeTrainingContext(trainingContext)}.`
+    : "";
+  const need = describeNeed(feedback, history);
+
+  try {
+    const { toolResults, text } = await generateText({
+      model: fastModel,
+      abortSignal: signal,
+      tools: {
+        exa_search: gateway.tools.exaSearch({
+          numResults: 10,
+        }),
+      },
+      toolChoice: "required",
+      prompt: `Find real coaching resources (YouTube videos, coaching-site articles, or blog posts) for soccer drills that help with ${need}, for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize results whose title or content specifically addresses that need over generic technique or passing content. A video is preferable when one fits well, but a specific, well-matched article is better than a loosely-related video. Search for specific, well-matched drills, not general highlight reels or listicles.
+
+After searching, respond with ONLY a JSON array containing every 0-based result index, ranked best match first — don't omit any index. Rank a result that specifically addresses that need above one that's only generically related, and always rank a result that needs equipment the player doesn't have below every result that doesn't (e.g. "[2, 0, 1]" for 3 results). Every result must appear exactly once, even weak ones. No other text.`,
+    });
+
+    const output = toolResults?.[0]?.output as
+      | { results?: VideoResult[] }
+      | undefined;
+    const results = output?.results ?? [];
+    const ranked = parseRankedIndices(text, results.length);
+    console.log(
+      `[drill-search] ${results.length} raw results, ${ranked.length} ranked`,
+    );
+    return ranked
+      .map((i) => results[i])
+      .filter((r): r is VideoResult => r !== undefined);
+  } catch (error) {
+    // A search/screening failure shouldn't take down the whole request —
+    // the caller treats an empty result the same as "nothing found."
+    console.error("searchDrillSources failed", error);
+    return [];
+  }
+}
+
 // Field order matches reading/streaming order: intro first, then drills one
 // at a time, then outro last.
 const responseSchema = z.object({
@@ -149,103 +198,64 @@ export type ChatStreamEvent =
   | { type: "not-found" }
   | { type: "error"; message: string };
 
-type RespondOrSearchResult =
-  | { needsDrills: false }
-  | { needsDrills: true; ranked: VideoResult[] };
-
 /**
- * One call that both decides what the player needs and (when they need
- * drills) finds them — merged into a single model call instead of a
- * separate classification call followed by a separate search call, since
- * that extra round-trip was the single biggest chunk of response latency.
- *
- * The model is given the search tool with `toolChoice: "auto"` for
- * follow-ups: if the latest message is a plain question/comment, it just
- * answers directly (streamed live via `onAnswerDelta`) without calling the
- * tool; if it's a request for new/different drills, it calls the tool and
- * we treat the trailing text as the ranked-index list. The first message in
- * a chat has no follow-up context to answer, so the tool is required.
+ * Decides whether the latest message is asking for new/different/more
+ * drills, or is a plain question/comment about the conversation so far
+ * (e.g. "why aren't these focused on long passing?"). Only the former
+ * needs a fresh video search — answering the latter directly avoids
+ * regenerating a near-identical drill set for what was really just a
+ * question. Streams the answer (when there is one) as it's generated via
+ * `onAnswerDelta`, called with the cumulative text so far.
  */
-async function respondOrSearchDrills(
+async function streamRespondOrRequestDrills(
   feedback: string,
   history: ConversationTurn[],
   position: string | null,
   trainingContext: DrillGenerationTrainingContext | null,
   onAnswerDelta: (cumulativeText: string) => void,
   signal: AbortSignal,
-): Promise<RespondOrSearchResult> {
-  const isFollowUp = history.length > 0;
-  const need = describeNeed(feedback, history);
+): Promise<{ needsDrills: boolean }> {
+  const transcript = history
+    .slice(-MAX_HISTORY_TURNS)
+    .map(
+      (turn) => `${turn.role === "user" ? "Player" : "Coach"}: ${turn.content}`,
+    )
+    .join("\n");
   const contextClause = trainingContext
-    ? ` The player is ${describeTrainingContext(trainingContext)}.`
+    ? `, ${describeTrainingContext(trainingContext)}`
     : "";
-  const searchInstructions = `call the exa_search tool to find real coaching resources (YouTube videos, coaching-site articles, or blog posts) for soccer drills that help with ${need}, for ${describeAudience(position)}.${contextClause}${equipmentConstraint(trainingContext)} Prioritize results whose title or content specifically addresses that need over generic technique or passing content. A video is preferable when one fits well, but a specific, well-matched article is better than a loosely-related video. Search for specific, well-matched drills, not general highlight reels or listicles.
-
-After searching, respond with ONLY a JSON array containing every 0-based result index, ranked best match first — don't omit any index. Rank a result that specifically addresses that need above one that's only generically related, and always rank a result that needs equipment the player doesn't have below every result that doesn't (e.g. "[2, 0, 1]" for 3 results). Every result must appear exactly once, even weak ones. No other text.`;
-
-  const system = isFollowUp
-    ? (() => {
-        const transcript = history
-          .slice(-MAX_HISTORY_TURNS)
-          .map(
-            (turn) =>
-              `${turn.role === "user" ? "Player" : "Coach"}: ${turn.content}`,
-          )
-          .join("\n");
-        return `You are a soccer coaching assistant chatting with ${describeAudience(position)}${contextClause}, continuing a conversation about drills you've already recommended. Talk like a friendly coach texting back, not a formal report — warm, natural, conversational phrasing. Conversation so far:\n${transcript}\n\nDecide how to respond to the player's latest message. If they're asking for new, additional, more specific, or different drills (e.g. "give me more", "focus more on X", "these don't work, find better ones", "something harder"), ${searchInstructions} Otherwise — a question, clarification, comment, or anything that doesn't require finding new drill videos — do NOT call any tool; just answer directly and conversationally in 1-4 sentences, referencing the specific drills already discussed where relevant. Don't invent drills or describe videos that weren't already discussed.`;
-      })()
-    : `You are a soccer coaching assistant helping ${describeAudience(position)}. ${searchInstructions}`;
+  const MARKER = "NEED_DRILLS";
 
   try {
-    const { fullStream } = streamText({
+    const { textStream } = streamText({
       model: fastModel,
       abortSignal: signal,
-      tools: {
-        exa_search: gateway.tools.exaSearch({ numResults: 6 }),
-      },
-      toolChoice: isFollowUp ? "auto" : "required",
-      system,
+      system: `You are a soccer coaching assistant chatting with ${describeAudience(position)}${contextClause}, continuing a conversation about drills you've already recommended. Talk like a friendly coach texting back, not a formal report — warm, natural, conversational phrasing. Conversation so far:\n${transcript}\n\nDecide how to respond to the player's latest message. If they're asking for new, additional, more specific, or different drills (e.g. "give me more", "focus more on X", "these don't work, find better ones", "something harder"), respond with EXACTLY the text ${MARKER} and nothing else. Otherwise — a question, clarification, comment, or anything that doesn't require finding new drill videos — answer directly and conversationally in 1-4 sentences, referencing the specific drills already discussed where relevant. Don't invent drills or describe videos that weren't already discussed.`,
       prompt: feedback,
     });
 
-    let toolCalled = false;
-    let answerText = "";
-    let rankingText = "";
-    let results: VideoResult[] = [];
-
-    for await (const part of fullStream) {
-      if (part.type === "tool-call") {
-        toolCalled = true;
-      } else if (part.type === "tool-result") {
-        const output = part.output as { results?: VideoResult[] } | undefined;
-        results = output?.results ?? [];
-      } else if (part.type === "text-delta") {
-        if (toolCalled) {
-          rankingText += part.text;
-        } else {
-          answerText += part.text;
-          onAnswerDelta(answerText);
-        }
+    let buffer = "";
+    let decided: boolean | null = null;
+    for await (const delta of textStream) {
+      buffer += delta;
+      if (decided === null) {
+        if (buffer.length < MARKER.length) continue;
+        decided = buffer.trim().startsWith(MARKER);
+        if (!decided) onAnswerDelta(buffer);
+        continue;
       }
+      if (!decided) onAnswerDelta(buffer);
     }
-
-    if (!toolCalled) return { needsDrills: false };
-
-    const ranked = parseRankedIndices(rankingText, results.length);
-    console.log(
-      `[drill-search] ${results.length} raw results, ${ranked.length} ranked`,
-    );
-    return {
-      needsDrills: true,
-      ranked: ranked
-        .map((i) => results[i])
-        .filter((r): r is VideoResult => r !== undefined),
-    };
+    if (decided === null) {
+      decided = buffer.trim().startsWith(MARKER);
+      if (!decided) onAnswerDelta(buffer);
+    }
+    return { needsDrills: decided };
   } catch (error) {
-    // A search/screening failure shouldn't take down the whole request —
-    // the caller treats an empty result the same as "nothing found."
-    console.error("respondOrSearchDrills failed", error);
-    return { needsDrills: true, ranked: [] };
+    // If this gate fails for any reason, fall back to the existing
+    // behavior (treat it as a drill request) rather than losing the turn.
+    console.error("streamRespondOrRequestDrills failed", error);
+    return { needsDrills: true };
   }
 }
 
@@ -300,21 +310,31 @@ export async function streamChatResponse(
   const timeoutId = setTimeout(() => controller.abort(), PIPELINE_TIMEOUT_MS);
 
   try {
-    const result = await respondOrSearchDrills(
-      feedback,
-      history,
+    if (history.length > 0) {
+      const { needsDrills } = await streamRespondOrRequestDrills(
+        feedback,
+        history,
+        position,
+        trainingContext,
+        (text) => onEvent({ type: "answer", text }),
+        controller.signal,
+      );
+      if (!needsDrills) return;
+    }
+
+    const ranked = await searchDrillSources(
       position,
+      feedback,
       trainingContext,
-      (text) => onEvent({ type: "answer", text }),
+      history,
       controller.signal,
     );
-    if (!result.needsDrills) return;
-    if (result.ranked.length === 0) {
+    if (ranked.length === 0) {
       onEvent({ type: "not-found" });
       return;
     }
 
-    const selected = result.ranked.slice(0, MAX_DRILLS);
+    const selected = ranked.slice(0, MAX_DRILLS);
     const contextClause = trainingContext
       ? `, ${describeTrainingContext(trainingContext)}`
       : "";
