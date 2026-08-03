@@ -48,6 +48,19 @@ export interface AttendanceSummaryRow {
   present: boolean;
 }
 
+export interface ChatSummary {
+  id: string;
+  title: string;
+  folderId: string | null;
+  drillCount: number;
+  updatedAt: string;
+}
+
+export interface FolderSummary {
+  id: string;
+  name: string;
+}
+
 export interface SessionPlanData {
   email: string;
   sport: string;
@@ -57,6 +70,8 @@ export interface SessionPlanData {
   equipment: Equipment[];
   streak: number;
   recentAttendance: AttendanceSummaryRow[];
+  chats: ChatSummary[];
+  folders: FolderSummary[];
 }
 
 function mapDrill(row: DrillRow): Drill {
@@ -110,6 +125,8 @@ export async function getSessionPlanData(
     { data: feedback },
     { data: keptDrills },
     { data: attendanceRows },
+    { data: allChats },
+    { data: allFolders },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -141,10 +158,43 @@ export async function getSessionPlanData(
       .eq("player_id", userId)
       .order("date", { ascending: false })
       .limit(5),
+    supabase
+      .from("chats")
+      .select("id, folder_id, title, updated_at, chat_messages(drills(id))")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("folders")
+      .select("id, name")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false }),
   ]);
 
   const chatRow = ((chats ?? []) as unknown as ChatRow[])[0];
   const plan = chatRow ? mapPlan(chatRow) : null;
+
+  const chatSummaries: ChatSummary[] = (
+    (allChats ?? []) as unknown as Array<{
+      id: string;
+      folder_id: string | null;
+      title: string;
+      updated_at: string;
+      chat_messages: Array<{ drills: Array<{ id: string }> }>;
+    }>
+  ).map((row) => ({
+    id: row.id,
+    title: row.title,
+    folderId: row.folder_id,
+    drillCount: row.chat_messages.reduce(
+      (sum, message) => sum + message.drills.length,
+      0,
+    ),
+    updatedAt: row.updated_at,
+  }));
+
+  const folderSummaries: FolderSummary[] = (
+    (allFolders ?? []) as unknown as Array<{ id: string; name: string }>
+  ).map((row) => ({ id: row.id, name: row.name }));
 
   const streakDates = (
     (keptDrills ?? []) as unknown as Array<{
@@ -177,5 +227,7 @@ export async function getSessionPlanData(
     equipment: (profile?.equipment ?? []) as Equipment[],
     streak: computeStreak(streakDates),
     recentAttendance,
+    chats: chatSummaries,
+    folders: folderSummaries,
   };
 }
