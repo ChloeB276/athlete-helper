@@ -236,6 +236,7 @@ export function CoachDrillsChat({
         null,
         null,
         history,
+        selected.id,
         (snapshot) =>
           updateAssistantMessage({
             id: assistantId,

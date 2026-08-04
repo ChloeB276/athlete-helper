@@ -10,9 +10,42 @@ export const maxDuration = 60;
 const ANONYMOUS_RATE_LIMIT = { windowSeconds: 60 * 60, maxRequests: 3 };
 const MAX_HISTORY_TURNS = 8;
 
+/**
+ * How many drill regenerations ("give me harder ones", "these don't work,
+ * find better") are free after the first drill in a chat, before quota
+ * charges resume. Keeps refinement cheap without making an entire chat's
+ * regenerations unlimited on one quota charge.
+ */
+const FREE_FOLLOWUP_DRILLS_PER_CHAT = 2;
+
 interface TrainingContext {
   partners: number;
   equipment: string[];
+}
+
+/**
+ * Counts how many times this chat has already produced real drills, by
+ * looking at persisted data rather than trusting the client — a message
+ * only has `drills` rows if a generation actually completed. RLS scopes
+ * this to the caller's own chat, so an unrecognized `chatId` just reads
+ * back zero rather than leaking another user's data.
+ */
+async function countPriorDrillGenerations(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  chatId: string,
+): Promise<number> {
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select("id, drills(id)")
+    .eq("chat_id", chatId)
+    .eq("role", "assistant");
+  if (error) {
+    console.error(error);
+    return 0;
+  }
+  return (data ?? []).filter(
+    (message) => ((message as { drills?: unknown[] }).drills?.length ?? 0) > 0,
+  ).length;
 }
 
 function sanitizeHistory(value: unknown): ConversationTurn[] {
@@ -35,6 +68,8 @@ export async function POST(request: Request) {
   let history: unknown;
   let quotaKey: string | null = null;
   let quotaWindow: { windowSeconds: number; maxRequests: number } | null = null;
+  let isCoach = false;
+  let isFreeRegeneration = false;
 
   try {
     const body = (await request.json()) as {
@@ -42,6 +77,7 @@ export async function POST(request: Request) {
       position?: string | null;
       trainingContext?: TrainingContext | null;
       history?: unknown;
+      chatId?: string;
     };
     position = body.position;
     trainingContext = body.trainingContext;
@@ -73,20 +109,18 @@ export async function POST(request: Request) {
       }
     } else {
       const plan = await getPlanContext(supabase, user.id);
-      const isCoach = plan.role === "coach";
+      isCoach = plan.role === "coach";
       quotaKey = drillQuotaKey(plan, user.id);
       quotaWindow = drillQuotaWindow(plan);
 
-      const allowed = await checkRateLimit(quotaKey, quotaWindow);
-      if (!allowed) {
-        return Response.json(
-          {
-            error: isCoach
-              ? "You've hit your weekly drill-recommendation limit. Upgrade to Athlete Helper Pro for 10/week."
-              : "You've hit your monthly drill-generation limit. Upgrade to Athlete Helper Pro for 30/month.",
-          },
-          { status: 429 },
+      if (body.chatId) {
+        const priorDrillGenerations = await countPriorDrillGenerations(
+          supabase,
+          body.chatId,
         );
+        isFreeRegeneration =
+          priorDrillGenerations > 0 &&
+          priorDrillGenerations <= FREE_FOLLOWUP_DRILLS_PER_CHAT;
       }
     }
   } catch (error) {
@@ -109,12 +143,24 @@ export async function POST(request: Request) {
       }
 
       try {
+        const key = quotaKey;
+        const window = quotaWindow;
         await streamChatResponse(
           feedback,
           position ?? null,
           trainingContext ?? null,
           sanitizeHistory(history),
           send,
+          key && window
+            ? async () => {
+                if (isFreeRegeneration) return null;
+                const allowed = await checkRateLimit(key, window);
+                if (allowed) return null;
+                return isCoach
+                  ? "You've hit your weekly drill-recommendation limit. Upgrade to Athlete Helper Pro for 10/week."
+                  : "You've hit your monthly drill-generation limit. Upgrade to Athlete Helper Pro for 30/month.";
+              }
+            : undefined,
         );
 
         if (quotaKey && quotaWindow) {

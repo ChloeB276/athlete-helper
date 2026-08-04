@@ -81,12 +81,19 @@ export async function breakdownFeedback(
   position: string | null,
   trainingContext: TrainingContext | null,
   history: ConversationTurn[] = [],
+  chatId?: string,
   onUpdate?: (snapshot: FeedbackBreakdown) => void,
 ): Promise<FeedbackBreakdown> {
   const response = await fetch("/api/drill-feedback", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ feedback, position, trainingContext, history }),
+    body: JSON.stringify({
+      feedback,
+      position,
+      trainingContext,
+      history,
+      chatId,
+    }),
   });
 
   if (!response.ok) {
