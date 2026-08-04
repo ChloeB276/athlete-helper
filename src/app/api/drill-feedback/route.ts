@@ -35,6 +35,7 @@ export async function POST(request: Request) {
   let history: unknown;
   let quotaKey: string | null = null;
   let quotaWindow: { windowSeconds: number; maxRequests: number } | null = null;
+  let isCoach = false;
 
   try {
     const body = (await request.json()) as {
@@ -73,21 +74,9 @@ export async function POST(request: Request) {
       }
     } else {
       const plan = await getPlanContext(supabase, user.id);
-      const isCoach = plan.role === "coach";
+      isCoach = plan.role === "coach";
       quotaKey = drillQuotaKey(plan, user.id);
       quotaWindow = drillQuotaWindow(plan);
-
-      const allowed = await checkRateLimit(quotaKey, quotaWindow);
-      if (!allowed) {
-        return Response.json(
-          {
-            error: isCoach
-              ? "You've hit your weekly drill-recommendation limit. Upgrade to Athlete Helper Pro for 10/week."
-              : "You've hit your monthly drill-generation limit. Upgrade to Athlete Helper Pro for 30/month.",
-          },
-          { status: 429 },
-        );
-      }
     }
   } catch (error) {
     console.error("drill-feedback pre-stream setup failed", error);
@@ -109,12 +98,23 @@ export async function POST(request: Request) {
       }
 
       try {
+        const key = quotaKey;
+        const window = quotaWindow;
         await streamChatResponse(
           feedback,
           position ?? null,
           trainingContext ?? null,
           sanitizeHistory(history),
           send,
+          key && window
+            ? async () => {
+                const allowed = await checkRateLimit(key, window);
+                if (allowed) return null;
+                return isCoach
+                  ? "You've hit your weekly drill-recommendation limit. Upgrade to Athlete Helper Pro for 10/week."
+                  : "You've hit your monthly drill-generation limit. Upgrade to Athlete Helper Pro for 30/month.";
+              }
+            : undefined,
         );
 
         if (quotaKey && quotaWindow) {

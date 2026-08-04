@@ -300,6 +300,14 @@ export async function streamChatResponse(
   trainingContext: DrillGenerationTrainingContext | null,
   history: ConversationTurn[],
   onEvent: (event: ChatStreamEvent) => void,
+  /**
+   * Called only once we know a real drill writeup is about to be
+   * generated (not for plain conversational follow-ups or "nothing
+   * found" results) — so a player's quota is spent on drills they
+   * actually receive, not on clarifying questions. Returns an error
+   * message if the request should be blocked, or null to proceed.
+   */
+  authorizeDrillGeneration?: () => Promise<string | null>,
 ): Promise<void> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), PIPELINE_TIMEOUT_MS);
@@ -317,6 +325,14 @@ export async function streamChatResponse(
     if (result.ranked.length === 0) {
       onEvent({ type: "not-found" });
       return;
+    }
+
+    if (authorizeDrillGeneration) {
+      const denyMessage = await authorizeDrillGeneration();
+      if (denyMessage) {
+        onEvent({ type: "error", message: denyMessage });
+        return;
+      }
     }
 
     const selected = result.ranked.slice(0, MAX_DRILLS);
