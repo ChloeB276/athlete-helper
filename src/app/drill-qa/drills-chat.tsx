@@ -307,6 +307,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
         selected.position,
         trainingContext,
         history,
+        selected.id,
         (snapshot) =>
           updateAssistantMessage({
             id: assistantId,
