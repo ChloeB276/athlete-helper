@@ -2,8 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { FeedbackBreakdown } from "~/lib/feedback-breakdown";
 import { generateFeedbackBreakdown } from "~/lib/feedback-breakdown";
 import { createClient } from "~/lib/supabase/server";
+
+const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Elite"] as const;
 
 export interface FeedbackActionState {
   error?: string;
@@ -63,4 +66,59 @@ export async function submitFeedback(
 
   revalidatePath(`/coach/teams/${teamId}`);
   redirect(`/coach/teams/${teamId}`);
+}
+
+export interface UpdateFeedbackDrillsState {
+  error?: string;
+}
+
+export async function updateFeedbackDrills(
+  feedbackId: string,
+  drills: FeedbackBreakdown["drills"],
+): Promise<UpdateFeedbackDrillsState> {
+  if (
+    !Array.isArray(drills) ||
+    drills.some(
+      (drill) =>
+        typeof drill.title !== "string" ||
+        !drill.title.trim() ||
+        typeof drill.description !== "string" ||
+        !drill.description.trim() ||
+        !DIFFICULTIES.includes(drill.difficulty),
+    )
+  ) {
+    return { error: "Each drill needs a title, description, and difficulty." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { data: feedbackRow, error: fetchError } = await supabase
+    .from("feedback")
+    .select("team_id, player_id")
+    .eq("id", feedbackId)
+    .eq("coach_id", user.id)
+    .single();
+
+  if (fetchError || !feedbackRow) {
+    return { error: "Feedback not found." };
+  }
+
+  const { error } = await supabase
+    .from("feedback")
+    .update({ ai_drills: drills })
+    .eq("id", feedbackId)
+    .eq("coach_id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(
+    `/coach/teams/${feedbackRow.team_id}/players/${feedbackRow.player_id}/feedback/new`,
+  );
+  revalidatePath(`/teams/${feedbackRow.team_id}`);
+
+  return {};
 }
