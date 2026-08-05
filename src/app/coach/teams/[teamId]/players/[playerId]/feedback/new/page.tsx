@@ -87,7 +87,7 @@ export default async function NewFeedbackPage({
         <div className="flex flex-col gap-4">
           <h2 className="text-lg font-semibold tracking-tight">History</h2>
           {history.map((item) => (
-            <FeedbackCard key={item.id} item={item} />
+            <FeedbackCard key={item.id} item={item} editableDrills />
           ))}
         </div>
       )}
