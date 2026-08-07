@@ -1,3 +1,4 @@
+import { FeedbackDrillsChecklist } from "~/components/feedback-drills-checklist";
 import { FeedbackDrillsEditor } from "~/components/feedback-drills-editor";
 import type { FeedbackBreakdown } from "~/lib/feedback-breakdown";
 
@@ -57,25 +58,10 @@ export function FeedbackCard({
         (editableDrills ? (
           <FeedbackDrillsEditor feedbackId={item.id} drills={item.aiDrills} />
         ) : (
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-semibold">Drills</span>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {item.aiDrills.map((drill) => (
-                <div
-                  key={drill.title}
-                  className="flex flex-col gap-1 rounded-2xl bg-accent-b/15 p-4"
-                >
-                  <span className="w-fit rounded-full bg-brand/15 px-2.5 py-0.5 text-[11px] font-medium text-brand">
-                    {drill.difficulty}
-                  </span>
-                  <span className="text-sm font-semibold">{drill.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {drill.description}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <FeedbackDrillsChecklist
+            feedbackId={item.id}
+            drills={item.aiDrills}
+          />
         ))}
     </div>
   );
