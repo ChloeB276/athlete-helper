@@ -32,6 +32,7 @@ export interface FeedbackBreakdown {
     title: string;
     description: string;
     difficulty: (typeof DIFFICULTIES)[number];
+    completed?: boolean;
   }>;
 }
 
