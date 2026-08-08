@@ -75,11 +75,6 @@ export async function SignedInHome({ plan }: { plan: PlanContext }) {
 
   const data = await getSessionPlanData(user.id);
   const ungroupedChats = data.chats.filter((chat) => chat.folderId === null);
-  const coachCue = data.coachCue
-    ? data.coachCue.length > 100
-      ? `${data.coachCue.slice(0, 100)}…`
-      : data.coachCue
-    : "No coach feedback yet";
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-10 lg:flex-row lg:items-start">
@@ -207,7 +202,22 @@ export async function SignedInHome({ plan }: { plan: PlanContext }) {
           <dl className="flex flex-col gap-3 text-sm">
             <SummaryRow label="Athlete" value={data.email} />
             <SummaryRow label="Sport" value={data.sport} />
-            <SummaryRow label="Coach cue" value={coachCue} />
+            <div className="flex items-start justify-between gap-3">
+              <dt className="shrink-0 text-muted-foreground">Coach cue</dt>
+              {data.coachCueTeams.length > 0 ? (
+                <dd className="flex flex-col items-end gap-0.5 text-right font-medium">
+                  {data.coachCueTeams.map((teamName) => (
+                    <span key={teamName} className="truncate">
+                      {teamName}
+                    </span>
+                  ))}
+                </dd>
+              ) : (
+                <dd className="truncate text-right font-medium text-muted-foreground">
+                  No coach feedback yet
+                </dd>
+              )}
+            </div>
             <SummaryRow
               label="Streak"
               value={`🔥 ${data.streak}-day streak`}
