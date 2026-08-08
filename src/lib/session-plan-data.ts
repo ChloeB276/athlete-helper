@@ -66,7 +66,7 @@ export interface SessionPlanData {
   sport: string;
   position: string | null;
   plan: LatestPlan | null;
-  coachCue: string | null;
+  coachCueTeams: string[];
   equipment: Equipment[];
   streak: number;
   recentAttendance: AttendanceSummaryRow[];
@@ -143,11 +143,9 @@ export async function getSessionPlanData(
       .limit(1),
     supabase
       .from("feedback")
-      .select("coach_text, created_at")
+      .select("team_id, teams(name), created_at")
       .eq("player_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .order("created_at", { ascending: false }),
     supabase
       .from("drills")
       .select("chat_messages(created_at)")
@@ -218,12 +216,23 @@ export async function getSessionPlanData(
     present: row.present,
   }));
 
+  const coachCueTeams: string[] = [];
+  const seenTeamIds = new Set<string>();
+  for (const row of (feedback ?? []) as unknown as Array<{
+    team_id: string;
+    teams: { name: string } | null;
+  }>) {
+    if (seenTeamIds.has(row.team_id)) continue;
+    seenTeamIds.add(row.team_id);
+    coachCueTeams.push(row.teams?.name ?? "Team");
+  }
+
   return {
     email: profile?.email ?? "",
     sport: profile?.sport ?? "Soccer",
     position: plan?.position ?? profile?.positions?.[0] ?? null,
     plan,
-    coachCue: feedback?.coach_text ?? null,
+    coachCueTeams,
     equipment: (profile?.equipment ?? []) as Equipment[],
     streak: computeStreak(streakDates),
     recentAttendance,
