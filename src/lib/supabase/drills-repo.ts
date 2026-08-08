@@ -12,7 +12,14 @@ interface DrillRow {
   position_index: number;
   difficulty: string;
   title: string;
-  description: string;
+  area: string | null;
+  description: string | null;
+  setup: string | null;
+  steps: string[] | null;
+  sets_reps: string | null;
+  rest: string | null;
+  focus_cue: string | null;
+  benefit: string | null;
   source_title: string | null;
   image_url: string | null;
   video_url: string | null;
@@ -32,7 +39,7 @@ interface ChatRow {
   id: string;
   folder_id: string | null;
   title: string;
-  position: string | null;
+  positions: string[] | null;
   training_partners: number | null;
   training_equipment: string[] | null;
   updated_at: string;
@@ -44,7 +51,14 @@ function mapDrill(row: DrillRow): Drill {
     id: row.id,
     difficulty: row.difficulty as DrillDifficulty,
     title: row.title,
+    area: row.area,
     description: row.description,
+    setup: row.setup,
+    steps: row.steps,
+    setsReps: row.sets_reps,
+    rest: row.rest,
+    focus: row.focus_cue,
+    benefit: row.benefit,
     sourceTitle: row.source_title,
     imageUrl: row.image_url,
     videoUrl: row.video_url,
@@ -80,7 +94,7 @@ function mapChat(row: ChatRow): Chat {
     id: row.id,
     title: row.title,
     folderId: row.folder_id,
-    position: row.position,
+    positions: row.positions ?? [],
     trainingContext,
     messages,
     updatedAt: new Date(row.updated_at).getTime(),
@@ -102,7 +116,7 @@ export async function fetchChats(): Promise<Chat[]> {
   const { data, error } = await supabase
     .from("chats")
     .select(
-      "id, folder_id, title, position, training_partners, training_equipment, updated_at, chat_messages(id, role, content, outro, created_at, drills(id, position_index, difficulty, title, description, source_title, image_url, video_url, kept))",
+      "id, folder_id, title, positions, training_partners, training_equipment, updated_at, chat_messages(id, role, content, outro, created_at, drills(id, position_index, difficulty, title, area, description, setup, steps, sets_reps, rest, focus_cue, benefit, source_title, image_url, video_url, kept))",
     )
     .order("updated_at", { ascending: false });
   if (error) throw error;
@@ -141,7 +155,7 @@ export async function createChatRecord(chat: Chat): Promise<void> {
     id: chat.id,
     folder_id: chat.folderId,
     title: chat.title,
-    position: chat.position,
+    positions: chat.positions,
     updated_at: new Date(chat.updatedAt).toISOString(),
   });
   if (chatError) throw chatError;
@@ -206,11 +220,11 @@ export async function appendMessagesRecord(params: {
   chatId: string;
   userMessage: ChatMessage;
   assistantMessage: ChatMessage;
-  position: string | null;
+  positions: string[];
   title: string;
   updatedAt: number;
 }): Promise<void> {
-  const { chatId, userMessage, assistantMessage, position, title, updatedAt } =
+  const { chatId, userMessage, assistantMessage, positions, title, updatedAt } =
     params;
   const supabase = createClient();
 
@@ -243,7 +257,13 @@ export async function appendMessagesRecord(params: {
         position_index: index,
         difficulty: drill.difficulty,
         title: drill.title,
-        description: drill.description,
+        area: drill.area,
+        setup: drill.setup,
+        steps: drill.steps,
+        sets_reps: drill.setsReps,
+        rest: drill.rest,
+        focus_cue: drill.focus,
+        benefit: drill.benefit,
         source_title: drill.sourceTitle,
         image_url: drill.imageUrl,
         video_url: drill.videoUrl,
@@ -255,7 +275,7 @@ export async function appendMessagesRecord(params: {
 
   const { error: chatUpdateError } = await supabase
     .from("chats")
-    .update({ position, title, updated_at: new Date(updatedAt).toISOString() })
+    .update({ positions, title, updated_at: new Date(updatedAt).toISOString() })
     .eq("id", chatId);
   if (chatUpdateError) throw chatUpdateError;
 }

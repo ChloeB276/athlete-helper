@@ -28,9 +28,14 @@ function sanitizeHistory(value: unknown): ConversationTurn[] {
     .slice(-MAX_HISTORY_TURNS);
 }
 
+function sanitizePositions(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((p): p is string => typeof p === "string");
+}
+
 export async function POST(request: Request) {
   let feedback: string;
-  let position: string | null | undefined;
+  let positions: string[];
   let trainingContext: TrainingContext | null | undefined;
   let history: unknown;
   let quotaKey: string | null = null;
@@ -39,11 +44,11 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
       feedback?: string;
-      position?: string | null;
+      positions?: unknown;
       trainingContext?: TrainingContext | null;
       history?: unknown;
     };
-    position = body.position;
+    positions = sanitizePositions(body.positions);
     trainingContext = body.trainingContext;
     history = body.history;
 
@@ -111,7 +116,7 @@ export async function POST(request: Request) {
       try {
         await streamChatResponse(
           feedback,
-          position ?? null,
+          positions,
           trainingContext ?? null,
           sanitizeHistory(history),
           send,

@@ -46,7 +46,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [quota, setQuota] = useState(initialQuota);
-  const [defaultPosition, setDefaultPosition] = useState<string | null>(null);
+  const [defaultPositions, setDefaultPositions] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
     new Set(),
@@ -74,7 +74,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
       if (cancelled) return;
       setChats(loadedChats);
       setFolders(loadedFolders);
-      setDefaultPosition(loadedPositions[0] ?? null);
+      setDefaultPositions(loadedPositions);
       const requestedId = searchParams.get("chat");
       const pendingFeedback = searchParams.get("feedback");
       let initialId = loadedChats.some((c) => c.id === requestedId)
@@ -82,7 +82,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
         : (loadedChats[0]?.id ?? null);
 
       if (pendingFeedback && !initialId) {
-        const chat = newChat(loadedPositions[0] ?? null);
+        const chat = newChat(loadedPositions);
         setChats((prev) => [chat, ...prev]);
         createChatRecord(chat).catch((error) => console.error(error));
         initialId = chat.id;
@@ -121,7 +121,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
   }
 
   function createChat() {
-    const chat = newChat(defaultPosition);
+    const chat = newChat(defaultPositions);
     setChats((prev) => [chat, ...prev]);
     setSelectedId(chat.id);
     setInput("");
@@ -208,7 +208,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
       chatId: selected.id,
       userMessage,
       assistantMessage,
-      position: selected.position,
+      positions: selected.positions,
       title: selected.title,
       updatedAt,
     }).catch((error) => console.error(error));
@@ -226,12 +226,15 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
     };
     setInput("");
 
-    if (!selected.position) {
-      const nextPosition = trimmed;
+    if (selected.positions.length === 0) {
+      const nextPositions = trimmed
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean);
       const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: acknowledgePosition(trimmed),
+        content: acknowledgePosition(nextPositions),
       };
       const updatedAt = Date.now();
 
@@ -240,7 +243,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
           c.id === selected.id
             ? {
                 ...c,
-                position: nextPosition,
+                positions: nextPositions,
                 messages: [...c.messages, userMessage, assistantMessage],
                 updatedAt,
               }
@@ -252,7 +255,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
         chatId: selected.id,
         userMessage,
         assistantMessage,
-        position: nextPosition,
+        positions: nextPositions,
         title: selected.title,
         updatedAt,
       }).catch((error) => console.error(error));
@@ -304,7 +307,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
     try {
       const breakdown = await breakdownFeedback(
         trimmed,
-        selected.position,
+        selected.positions,
         trainingContext,
         history,
         (snapshot) =>
@@ -358,7 +361,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
       chatId: selected.id,
       userMessage,
       assistantMessage,
-      position: selected.position,
+      positions: selected.positions,
       title: nextTitle,
       updatedAt,
     }).catch((error) => console.error(error));
@@ -596,11 +599,14 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
               <h1 className="min-w-0 flex-1 truncate text-lg font-bold tracking-tight">
                 {selected.title}
               </h1>
-              {selected.position && (
-                <span className="rounded-full bg-brand px-3 py-1 text-xs font-semibold tracking-widest text-brand-foreground uppercase">
-                  {selected.position}
+              {selected.positions.map((position) => (
+                <span
+                  key={position}
+                  className="rounded-full bg-brand px-3 py-1 text-xs font-semibold tracking-widest text-brand-foreground uppercase"
+                >
+                  {position}
                 </span>
-              )}
+              ))}
               <div className="flex w-full items-center gap-3 md:ml-auto md:w-auto">
                 <QuotaBadge
                   remaining={quota.remaining}
@@ -678,7 +684,7 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
             </div>
 
             <div className="p-4">
-              {selected.position && !selected.trainingContext ? (
+              {selected.positions.length > 0 && !selected.trainingContext ? (
                 <TrainingContextForm onSubmit={submitTrainingContext} />
               ) : (
                 <form
@@ -696,8 +702,8 @@ export function DrillsChat({ quota: initialQuota }: { quota: DrillQuota }) {
                     placeholder={
                       sending
                         ? "Searching for real drills..."
-                        : selected.position
-                          ? "Describe some feedback..."
+                        : selected.positions.length > 0
+                          ? "Describe what you'd like to work on..."
                           : "e.g. center back, winger, goalkeeper..."
                     }
                     className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"

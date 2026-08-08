@@ -28,8 +28,19 @@ const MOCK_DRILL: Drill = {
   id: "mock-first-touch",
   difficulty: "Intermediate",
   title: "First-Touch Control",
-  description:
-    "4 sets of 5 minutes of wall-pass touch-and-turn reps, building from walk-through pace to full match speed.",
+  area: "First touch",
+  description: null,
+  setup: "A wall (or rebounder) and a ball, in a small open space.",
+  steps: [
+    "Pass the ball into the wall at a controlled pace",
+    "Take a touch to set the ball away from your body as it returns",
+    "Turn and dribble a few yards before resetting",
+  ],
+  setsReps: "4 sets x 5 minutes",
+  rest: "60s between sets",
+  focus: "Cushioning the ball on the first touch, not just stopping it dead",
+  benefit:
+    "Builds the touch-and-turn habit that turns a pass under pressure into a controlled next move.",
   sourceTitle: null,
   imageUrl: null,
   videoUrl: null,

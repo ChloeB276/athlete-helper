@@ -1,7 +1,7 @@
 import {
   ASK_POSITION_PROMPT,
   type Drill,
-  greetingForPosition,
+  greetingForPositions,
   type TrainingContext,
 } from "~/lib/soccer-feedback";
 
@@ -17,7 +17,7 @@ export interface Chat {
   id: string;
   title: string;
   folderId: string | null;
-  position: string | null;
+  positions: string[];
   trainingContext: TrainingContext | null;
   messages: ChatMessage[];
   updatedAt: number;
@@ -30,18 +30,21 @@ export interface Folder {
 
 export const DEFAULT_TITLE = "New chat";
 
-export function newChat(position: string | null): Chat {
+export function newChat(positions: string[]): Chat {
   return {
     id: crypto.randomUUID(),
     title: DEFAULT_TITLE,
     folderId: null,
-    position,
+    positions,
     trainingContext: null,
     messages: [
       {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: position ? greetingForPosition(position) : ASK_POSITION_PROMPT,
+        content:
+          positions.length > 0
+            ? greetingForPositions(positions)
+            : ASK_POSITION_PROMPT,
       },
     ],
     updatedAt: Date.now(),

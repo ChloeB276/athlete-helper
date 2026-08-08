@@ -7,7 +7,14 @@ interface DrillRow {
   position_index: number;
   difficulty: string;
   title: string;
-  description: string;
+  area: string | null;
+  description: string | null;
+  setup: string | null;
+  steps: string[] | null;
+  sets_reps: string | null;
+  rest: string | null;
+  focus_cue: string | null;
+  benefit: string | null;
   source_title: string | null;
   image_url: string | null;
   video_url: string | null;
@@ -24,7 +31,7 @@ interface ChatMessageRow {
 
 interface ChatRow {
   id: string;
-  position: string | null;
+  positions: string[] | null;
   training_partners: number | null;
   training_equipment: string[] | null;
   updated_at: string;
@@ -33,7 +40,7 @@ interface ChatRow {
 
 export interface LatestPlan {
   chatId: string;
-  position: string | null;
+  positions: string[];
   trainingContext: { partners: number; equipment: Equipment[] } | null;
   intro: string;
   outro: string | null;
@@ -64,7 +71,7 @@ export interface FolderSummary {
 export interface SessionPlanData {
   email: string;
   sport: string;
-  position: string | null;
+  positions: string[];
   plan: LatestPlan | null;
   coachCue: string | null;
   equipment: Equipment[];
@@ -79,7 +86,14 @@ function mapDrill(row: DrillRow): Drill {
     id: row.id,
     difficulty: row.difficulty as DrillDifficulty,
     title: row.title,
+    area: row.area,
     description: row.description,
+    setup: row.setup,
+    steps: row.steps,
+    setsReps: row.sets_reps,
+    rest: row.rest,
+    focus: row.focus_cue,
+    benefit: row.benefit,
     sourceTitle: row.source_title,
     imageUrl: row.image_url,
     videoUrl: row.video_url,
@@ -99,7 +113,7 @@ function mapPlan(row: ChatRow): LatestPlan | null {
 
   return {
     chatId: row.id,
-    position: row.position,
+    positions: row.positions ?? [],
     trainingContext:
       row.training_partners === null
         ? null
@@ -136,7 +150,7 @@ export async function getSessionPlanData(
     supabase
       .from("chats")
       .select(
-        "id, position, training_partners, training_equipment, updated_at, chat_messages(id, content, outro, created_at, drills(id, position_index, difficulty, title, description, source_title, image_url, video_url, kept))",
+        "id, positions, training_partners, training_equipment, updated_at, chat_messages(id, content, outro, created_at, drills(id, position_index, difficulty, title, area, description, setup, steps, sets_reps, rest, focus_cue, benefit, source_title, image_url, video_url, kept))",
       )
       .eq("user_id", userId)
       .order("updated_at", { ascending: false })
@@ -221,7 +235,7 @@ export async function getSessionPlanData(
   return {
     email: profile?.email ?? "",
     sport: profile?.sport ?? "Soccer",
-    position: plan?.position ?? profile?.positions?.[0] ?? null,
+    positions: plan?.positions ?? profile?.positions ?? [],
     plan,
     coachCue: feedback?.coach_text ?? null,
     equipment: (profile?.equipment ?? []) as Equipment[],

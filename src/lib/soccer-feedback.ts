@@ -1,17 +1,36 @@
 const POSITION_FOCUS: Record<string, string> = {
+  goalie: "shot-stopping, positioning, and distribution",
   goalkeeper: "shot-stopping, positioning, and distribution",
-  defender: "marking, tackling, and building out from the back",
-  "center back": "marking, tackling, and building out from the back",
   fullback: "1v1 defending and supporting the attack down the flank",
+  "centre back": "marking, tackling, and building out from the back",
+  "center back": "marking, tackling, and building out from the back",
+  defender: "marking, tackling, and building out from the back",
+  "defensive mid":
+    "shielding the back line, winning duels, and recycling possession",
+  "attacking mid":
+    "receiving between the lines, creating chances, and finishing",
   midfielder: "receiving under pressure, scanning, and spraying passes",
   winger: "beating defenders 1v1 and delivering final balls",
-  forward: "movement off the ball and finishing",
   striker: "movement off the ball and finishing",
+  forward: "movement off the ball and finishing",
 };
 
 export function positionFocus(position: string): string {
   const key = position.trim().toLowerCase();
   return POSITION_FOCUS[key] ?? "your role on the pitch";
+}
+
+function joinWithAnd(items: string[]): string {
+  if (items.length === 0) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+/** Combines the focus text for each position, deduping shared focus areas (e.g. Centre Back and Defender). */
+export function combinedPositionFocus(positions: string[]): string {
+  const focuses = Array.from(new Set(positions.map((p) => positionFocus(p))));
+  return joinWithAnd(focuses);
 }
 
 export type DrillDifficulty =
@@ -38,7 +57,16 @@ export interface Drill {
   id: string;
   difficulty: DrillDifficulty;
   title: string;
-  description: string;
+  /** Short label for which requested area this drill addresses, e.g. "Long passing". */
+  area: string | null;
+  /** Legacy freeform writeup, only present on drills generated before the structured format. */
+  description: string | null;
+  setup: string | null;
+  steps: string[] | null;
+  setsReps: string | null;
+  rest: string | null;
+  focus: string | null;
+  benefit: string | null;
   sourceTitle: string | null;
   imageUrl: string | null;
   videoUrl: string | null;
@@ -55,7 +83,13 @@ export interface FeedbackBreakdown {
 interface GeneratedDrill {
   difficulty: DrillDifficulty;
   title: string;
-  description: string;
+  area: string | null;
+  setup: string | null;
+  steps: string[] | null;
+  setsReps: string | null;
+  rest: string | null;
+  focus: string | null;
+  benefit: string | null;
   sourceTitle: string | null;
   imageUrl: string | null;
   videoUrl: string | null;
@@ -78,7 +112,7 @@ type StreamEvent =
 
 export async function breakdownFeedback(
   feedback: string,
-  position: string | null,
+  positions: string[],
   trainingContext: TrainingContext | null,
   history: ConversationTurn[] = [],
   onUpdate?: (snapshot: FeedbackBreakdown) => void,
@@ -86,7 +120,7 @@ export async function breakdownFeedback(
   const response = await fetch("/api/drill-feedback", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ feedback, position, trainingContext, history }),
+    body: JSON.stringify({ feedback, positions, trainingContext, history }),
   });
 
   if (!response.ok) {
@@ -138,7 +172,14 @@ export async function breakdownFeedback(
                 id,
                 difficulty: drill.difficulty,
                 title: drill.title,
-                description: drill.description,
+                area: drill.area,
+                description: null,
+                setup: drill.setup,
+                steps: drill.steps,
+                setsReps: drill.setsReps,
+                rest: drill.rest,
+                focus: drill.focus,
+                benefit: drill.benefit,
                 sourceTitle: drill.sourceTitle,
                 imageUrl: drill.imageUrl,
                 videoUrl: drill.videoUrl,
@@ -171,12 +212,17 @@ export async function breakdownFeedback(
 export const ASK_POSITION_PROMPT =
   "Hi! I'm your Athlete Helper AI coach for soccer players. What position do you play?";
 
-export function acknowledgePosition(position: string): string {
-  return `Got it, you play ${position}. Before we get into drills, let's set up your training session.`;
+export function acknowledgePosition(positions: string[]): string {
+  return `Got it, you play ${joinWithAnd(positions)}. Before we get into drills, let's set up your training session.`;
 }
 
-export function greetingForPosition(position: string): string {
-  return `Hi! I'm your Athlete Helper AI coach for soccer players. Tell me some feedback your coach gave you as a ${position}, and I'll break it down into a detailed drill plan.`;
+export function greetingForPositions(positions: string[]): string {
+  if (positions.length === 0) {
+    return "Hi! I'm your Athlete Helper AI coach for soccer players. Tell me what you'd like to work on — describe what you feel weak at, paste feedback your coach gave you, or ask about a specific skill — and I'll build you a drill plan.";
+  }
+  const roles = joinWithAnd(positions);
+  const focus = combinedPositionFocus(positions);
+  return `Hi! I'm your Athlete Helper AI coach for soccer players. As a ${roles}, a good focus area is ${focus}. Tell me what you'd like to work on — describe what you feel weak at, paste feedback your coach gave you, or ask about a couple of different areas at once.`;
 }
 
 export function describeTrainingContext(context: TrainingContext): string {
@@ -198,5 +244,5 @@ export function describeTrainingContext(context: TrainingContext): string {
 }
 
 export function acknowledgeTrainingContext(): string {
-  return "Got it. Now tell me some feedback your coach gave you, and I'll find real drills to fix it.";
+  return "Got it. What would you like to work on? Share your own goals, coach feedback, or a couple of different areas at once — I'll build you drills for each.";
 }

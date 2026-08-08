@@ -36,7 +36,7 @@ function newCoachChat(): Chat {
     id: crypto.randomUUID(),
     title: DEFAULT_TITLE,
     folderId: null,
-    position: null,
+    positions: [],
     trainingContext: null,
     messages: [
       {
@@ -233,7 +233,7 @@ export function CoachDrillsChat({
     try {
       const breakdown = await breakdownFeedback(
         trimmed,
-        null,
+        [],
         null,
         history,
         (snapshot) =>
@@ -287,7 +287,7 @@ export function CoachDrillsChat({
       chatId: selected.id,
       userMessage,
       assistantMessage,
-      position: null,
+      positions: [],
       title: nextTitle,
       updatedAt,
     }).catch((error) => console.error(error));

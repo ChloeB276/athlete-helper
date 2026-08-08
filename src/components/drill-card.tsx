@@ -32,9 +32,16 @@ export function DrillCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-bold tracking-widest text-brand uppercase">
-            {drill.difficulty}
-          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-bold tracking-widest text-brand uppercase">
+              {drill.difficulty}
+            </span>
+            {drill.area && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                {drill.area}
+              </span>
+            )}
+          </div>
           <h3 className="text-sm font-bold text-foreground">{drill.title}</h3>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -62,9 +69,57 @@ export function DrillCard({
           </button>
         </div>
       </div>
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        {drill.description}
-      </p>
+      {(drill.setup ?? "") || (drill.steps?.length ?? 0) > 0 ? (
+        <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+          {drill.setup && (
+            <p>
+              <span className="font-semibold text-foreground">Setup: </span>
+              {drill.setup}
+            </p>
+          )}
+          {drill.steps && drill.steps.length > 0 && (
+            <ol className="list-inside list-decimal space-y-0.5 leading-relaxed">
+              {drill.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          )}
+          {(drill.setsReps || drill.rest) && (
+            <div className="flex flex-wrap gap-2">
+              {drill.setsReps && (
+                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
+                  {drill.setsReps}
+                </span>
+              )}
+              {drill.rest && (
+                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
+                  Rest: {drill.rest}
+                </span>
+              )}
+            </div>
+          )}
+          {drill.focus && (
+            <p>
+              <span className="font-semibold text-foreground">Focus: </span>
+              {drill.focus}
+            </p>
+          )}
+          {drill.benefit && (
+            <p>
+              <span className="font-semibold text-foreground">
+                Why it helps:{" "}
+              </span>
+              {drill.benefit}
+            </p>
+          )}
+        </div>
+      ) : (
+        drill.description && (
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {drill.description}
+          </p>
+        )
+      )}
       {showVisuals && drill.imageUrl && drill.videoUrl && (
         <div className="mt-1 flex items-center gap-3">
           <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg">
