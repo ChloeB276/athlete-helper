@@ -122,3 +122,51 @@ export async function updateFeedbackDrills(
 
   return {};
 }
+
+export interface ToggleFeedbackDrillCompletedState {
+  error?: string;
+}
+
+export async function toggleFeedbackDrillCompleted(
+  feedbackId: string,
+  drillIndex: number,
+  completed: boolean,
+): Promise<ToggleFeedbackDrillCompletedState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { data: feedbackRow, error: fetchError } = await supabase
+    .from("feedback")
+    .select("team_id, ai_drills")
+    .eq("id", feedbackId)
+    .eq("player_id", user.id)
+    .single();
+
+  if (fetchError || !feedbackRow) {
+    return { error: "Feedback not found." };
+  }
+
+  const drills = feedbackRow.ai_drills as FeedbackBreakdown["drills"];
+  if (!drills[drillIndex]) {
+    return { error: "Drill not found." };
+  }
+
+  const updatedDrills = drills.map((drill, i) =>
+    i === drillIndex ? { ...drill, completed } : drill,
+  );
+
+  const { error } = await supabase
+    .from("feedback")
+    .update({ ai_drills: updatedDrills })
+    .eq("id", feedbackId)
+    .eq("player_id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/teams/${feedbackRow.team_id}`);
+
+  return {};
+}
